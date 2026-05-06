@@ -1,0 +1,11 @@
+{
+  "id": "quest_001",
+  "title": "첫 임무",
+  "reward": { "coins": 1 },
+  "steps": [
+    { "actionId": "talk_npc", "objective": "NPC에게 3번 말 걸기", "requiredCount": 3 },
+    { "actionId": "pickup_item", "objective": "아이템 줍기" },
+    { "actionId": "submit_terminal", "objective": "터미널에 제출하기" }
+  ]
+}
+
