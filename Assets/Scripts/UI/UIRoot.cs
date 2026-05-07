@@ -9,9 +9,6 @@ namespace DataDrivenDemo.UI
         Menu = 1,
     }
 
-    /// <summary>
-    /// Canvas 아래 여러 UI 묶음을 한 군데서 토글하기 위한 루트.
-    /// </summary>
     public sealed class UIRoot : MonoBehaviour
     {
         [Header("Groups")]

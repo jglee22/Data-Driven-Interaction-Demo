@@ -235,7 +235,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2013177252884904642, guid: 276c7ec1dd9719543aa53976efca77c6, type: 3}
       propertyPath: m_Name
-      value: dummy
+      value: dummy_Interactable
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -288,7 +288,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 315b5d9396b3bf74eacb4bb33c40477d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DataDrivenDemo.Interaction.TerminalSubmitInteractable
-  id: 
+  id: Test_Interactable
   displayName: "\uC624\uBE0C\uC81D\uD2B8"
   actionId: submit_terminal
 --- !u!1 &291182673
@@ -702,6 +702,51 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 396163397}
   m_CullTransparentMesh: 1
+--- !u!1 &494327288
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 494327290}
+  - component: {fileID: 494327289}
+  m_Layer: 0
+  m_Name: FirebaseSaveInstaller
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &494327289
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 494327288}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 485f41b1174513940b20f7e31647f719, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DataDrivenDemo.Firebase.FirebaseSaveInstaller
+  bootstrap: {fileID: 1681472748}
+--- !u!4 &494327290
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 494327288}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &506144449
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -712,7 +757,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 6982596293008965127, guid: 27b8a37b42d20fc4a92827462ebefe53, type: 3}
       propertyPath: m_Name
-      value: box_005
+      value: box_005_Interactable
       objectReference: {fileID: 0}
     - target: {fileID: 7758852209104807101, guid: 27b8a37b42d20fc4a92827462ebefe53, type: 3}
       propertyPath: m_LocalPosition.x
@@ -782,7 +827,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2d133c8393142de48a0855a0180855f5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DataDrivenDemo.Interaction.ItemPickupInteractable
-  id: 
+  id: Test_Interactable
   displayName: "\uC624\uBE0C\uC81D\uD2B8"
   actionId: pickup_item
   disableAfterPickup: 1
@@ -807,6 +852,57 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1.7801335, y: 1.0430764, z: 1.0471793}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &632732804
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 632732806}
+  - component: {fileID: 632732805}
+  m_Layer: 0
+  m_Name: GameplayerInputLock
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &632732805
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 632732804}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f3a616f417fd0e43b3525d253da11e0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DataDrivenDemo.Core.Flow.GameplayInputLock
+  uiRoot: {fileID: 2046608853}
+  playerController: {fileID: 1350136079}
+  proximityInteractor: {fileID: 1350136073}
+  playerRigidbody: {fileID: 0}
+  pauseTimeScale: 0
+  showCursorInMenu: 1
+  setRigidbodyKinematicInMenu: 1
+--- !u!4 &632732806
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 632732804}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &659563033
 GameObject:
   m_ObjectHideFlags: 0
@@ -1326,7 +1422,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5af8cbb0651322c4ca71240f192ca901, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DataDrivenDemo.Interaction.NpcInteractable
-  id: 
+  id: Test_Interactable
   displayName: "\uC624\uBE0C\uC81D\uD2B8"
   actionId: talk_npc
 --- !u!1 &1350136072
@@ -1364,7 +1460,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5357305d0db738b48afdcd5bd9fcabe5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DataDrivenDemo.Interaction.ProximityInteractor
-  promptView: {fileID: 0}
+  promptView: {fileID: 1965141589}
 --- !u!54 &1350136074
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -1655,6 +1751,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1511849610662286, guid: 1e4f0d9e7dbf221419b0bd0e1286aa16, type: 3}
+      propertyPath: m_Name
+      value: LabTable_Interactable
+      objectReference: {fileID: 0}
     - target: {fileID: 4127565821731316, guid: 1e4f0d9e7dbf221419b0bd0e1286aa16, type: 3}
       propertyPath: m_RootOrder
       value: 2
@@ -2085,6 +2185,50 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 90, y: 180, z: 180}
+--- !u!1 &1681472747
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1681472749}
+  - component: {fileID: 1681472748}
+  m_Layer: 0
+  m_Name: FirebaseBootstrap
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1681472748
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1681472747}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 88fd067a1c575fb4297ea143adc6f92c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DataDrivenDemo.Firebase.FirebaseBootstrap
+--- !u!4 &1681472749
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1681472747}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1793860763
 GameObject:
   m_ObjectHideFlags: 0
@@ -2932,3 +3076,6 @@ SceneRoots:
   - {fileID: 506144449}
   - {fileID: 53505736}
   - {fileID: 1365559668}
+  - {fileID: 632732806}
+  - {fileID: 1681472749}
+  - {fileID: 494327290}

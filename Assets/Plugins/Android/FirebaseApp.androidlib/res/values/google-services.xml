@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@string/gcm_defaultSenderId,@string/google_storage_bucket,@string/project_id,@string/google_api_key,@string/google_crash_reporting_api_key,@string/google_app_id">
+  <string name="gcm_defaultSenderId" translatable="false">78641781769</string>
+  <string name="google_storage_bucket" translatable="false">data-driven-interaction-demo.firebasestorage.app</string>
+  <string name="project_id" translatable="false">data-driven-interaction-demo</string>
+  <string name="google_api_key" translatable="false">AIzaSyDg0mmKdOYReP7rl7LRrnYzpnMBzqg9YKY</string>
+  <string name="google_crash_reporting_api_key" translatable="false">AIzaSyDg0mmKdOYReP7rl7LRrnYzpnMBzqg9YKY</string>
+  <string name="google_app_id" translatable="false">1:78641781769:android:61e029a6ebcba5b620ecd8</string>
+</resources>

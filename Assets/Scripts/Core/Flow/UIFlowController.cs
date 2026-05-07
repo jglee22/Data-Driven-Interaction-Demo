@@ -4,9 +4,6 @@ using DataDrivenDemo.Core.Save;
 
 namespace DataDrivenDemo.Core.Flow
 {
-    /// <summary>
-    /// 전역 입력(예: Esc)으로 UI 상태를 토글하는 컨트롤러.
-    /// </summary>
     [DisallowMultipleComponent]
     public sealed class UIFlowController : MonoBehaviour
     {
@@ -65,7 +62,7 @@ namespace DataDrivenDemo.Core.Flow
             if (state == UIState.Menu)
             {
                 menuView.SetButtonsActive(true);
-                menuView.SetContinueEnabled(SaveServices.QuestSave.LoadQuestState(questId) != null);
+                SaveServices.QuestSave.LoadQuestStateAsync(questId, saved => menuView.SetContinueEnabled(saved != null));
             }
         }
     }

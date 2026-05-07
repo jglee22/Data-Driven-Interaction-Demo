@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using DataDrivenDemo.Core.Save;
 using DataDrivenDemo.UI;
+using DataDrivenDemo.Firebase;
 
 namespace DataDrivenDemo.Core.Flow
 {
@@ -19,24 +20,20 @@ namespace DataDrivenDemo.Core.Flow
         [SerializeField] private MainMenuView menuView;
         [SerializeField] private UIRoot uiRoot;
 
+        [Header("Auth (Optional)")]
+        [SerializeField] private GoogleSignInFirebaseAuth googleAuth;
+        [SerializeField] private bool loadPlaySceneAfterGoogleSignIn = true;
+
         private void Awake()
         {
             if (menuView != null)
-                menuView.SetHandlers(Continue, NewGame);
+                menuView.SetHandlers(Continue, NewGame, GoogleSignIn);
 
             if (uiRoot == null)
                 uiRoot = FindFirstObjectByType<UIRoot>();
-        }
 
-        private void OnEnable()
-        {
-            // UIRoot로 메뉴 GameObject가 꺼졌다 켜질 때마다 버튼이 숨김 상태로 남지 않도록 보정
-            if (menuView == null)
-                return;
-
-            menuView.Show();
-            menuView.SetButtonsActive(true);
-            menuView.SetContinueEnabled(HasSave());
+            if (googleAuth == null)
+                googleAuth = FindFirstObjectByType<GoogleSignInFirebaseAuth>(FindObjectsInactive.Include);
         }
 
         private void Start()
@@ -44,15 +41,26 @@ namespace DataDrivenDemo.Core.Flow
             if (menuView == null)
                 return;
 
-            menuView.Show();
-            menuView.SetButtonsActive(true);
-            menuView.SetContinueEnabled(HasSave());
+            // ESC로 메뉴가 열릴 때 버튼 표시/컨티뉴 활성은 UIFlowController(UIRoot StateChanged)가 담당.
+            // 여기서 항상 켜면 첫 진입부터 New/Continue가 같이 보인다.
+            if (ShouldShowMenuButtons())
+            {
+                SaveServices.QuestSave.LoadQuestStateAsync(questId,
+                    saved => menuView.SetContinueEnabled(saved != null));
+                menuView.SetButtonsActive(true);
+            }
+            else
+            {
+                menuView.SetButtonsActive(false);
+            }
         }
 
-        private bool HasSave()
+        private bool ShouldShowMenuButtons()
         {
-            var saved = SaveServices.QuestSave.LoadQuestState(questId);
-            return saved != null;
+            if (uiRoot == null)
+                return false;
+
+            return uiRoot.State == UIState.Menu;
         }
 
         public void Continue()
@@ -63,9 +71,34 @@ namespace DataDrivenDemo.Core.Flow
 
         public void NewGame()
         {
-            SaveServices.QuestSave.ClearQuestState(questId);
-            uiRoot?.ShowGameplay();
-            LoadPlayScene();
+            SaveServices.QuestSave.ClearQuestState(questId, () =>
+            {
+                uiRoot?.ShowGameplay();
+                LoadPlayScene();
+            });
+        }
+
+        public void GoogleSignIn()
+        {
+            if (googleAuth == null || !googleAuth.IsAvailable)
+            {
+                Debug.LogWarning("[MainMenuController] GoogleSignIn not available. Install Google Sign-In plugin and set Web Client Id.");
+                return;
+            }
+
+            googleAuth.SignIn(
+                onSignedIn: uid =>
+                {
+                    Debug.Log($"[MainMenuController] Google sign-in ok. uid={uid}");
+                    SaveServices.QuestSave.LoadQuestStateAsync(questId, saved => menuView?.SetContinueEnabled(saved != null));
+
+                    if (loadPlaySceneAfterGoogleSignIn)
+                    {
+                        uiRoot?.ShowGameplay();
+                        LoadPlayScene();
+                    }
+                },
+                onFailed: err => Debug.LogWarning($"[MainMenuController] Google sign-in failed: {err}"));
         }
 
         private void LoadPlayScene()

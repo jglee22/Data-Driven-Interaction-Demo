@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace DataDrivenDemo.Core.Save
@@ -33,13 +34,23 @@ namespace DataDrivenDemo.Core.Save
             return JsonUtility.FromJson<QuestState>(json);
         }
 
-        public void ClearQuestState(string questId)
+        public void LoadQuestStateAsync(string questId, Action<QuestState> onLoaded)
+        {
+            var s = LoadQuestState(questId);
+            onLoaded?.Invoke(s);
+        }
+
+        public void ClearQuestState(string questId, Action onCompleted = null)
         {
             if (string.IsNullOrWhiteSpace(questId))
+            {
+                onCompleted?.Invoke();
                 return;
+            }
 
             PlayerPrefs.DeleteKey(Key(questId));
             PlayerPrefs.Save();
+            onCompleted?.Invoke();
         }
 
         private static string Key(string questId) => Prefix + questId;

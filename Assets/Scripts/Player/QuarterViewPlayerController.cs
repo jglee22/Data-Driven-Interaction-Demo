@@ -33,6 +33,19 @@ namespace DataDrivenDemo.Player
                 cameraTransform = Camera.main.transform;
         }
 
+        private void OnDisable()
+        {
+            ResetInputState();
+            verticalVelocity = Vector3.zero;
+        }
+
+        public void ResetInputState()
+        {
+            moveFingerId = -1;
+            touchDelta = Vector2.zero;
+            touchStart = Vector2.zero;
+        }
+
         private void Update()
         {
             var input = ReadMoveInput();

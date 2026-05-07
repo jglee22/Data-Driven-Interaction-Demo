@@ -26,6 +26,7 @@ namespace DataDrivenDemo.Interaction
 
         private void OnTriggerEnter(Collider other)
         {
+            // 상호작용 콜라이더가 자식일 수 있어 Parent까지 탐색.
             var interactable = other.GetComponentInParent<IInteractable>();
             if (interactable == null) return;
 
@@ -65,6 +66,7 @@ namespace DataDrivenDemo.Interaction
 
         private void ResolvePromptView()
         {
+            // 씬에서 레퍼런스가 끊겨도(프리팹/씬 수정) 최소 동작 보장.
             if (promptView == null)
                 promptView = FindFirstObjectByType<InteractionPromptView>(FindObjectsInactive.Include);
 

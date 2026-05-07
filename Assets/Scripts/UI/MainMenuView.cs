@@ -10,10 +10,12 @@ namespace DataDrivenDemo.UI
         [SerializeField] private GameObject root;
         [SerializeField] private Button continueButton;
         [SerializeField] private Button newGameButton;
+        [SerializeField] private Button googleSignInButton;
         [SerializeField] private bool hideButtonsOnAwake = true;
 
         private Action onContinue;
         private Action onNewGame;
+        private Action onGoogleSignIn;
 
         private void Awake()
         {
@@ -21,6 +23,7 @@ namespace DataDrivenDemo.UI
 
             if (continueButton != null) continueButton.onClick.AddListener(HandleContinue);
             if (newGameButton != null) newGameButton.onClick.AddListener(HandleNewGame);
+            if (googleSignInButton != null) googleSignInButton.onClick.AddListener(HandleGoogleSignIn);
 
             if (hideButtonsOnAwake)
                 SetButtonsActive(false);
@@ -30,12 +33,14 @@ namespace DataDrivenDemo.UI
         {
             if (continueButton != null) continueButton.onClick.RemoveListener(HandleContinue);
             if (newGameButton != null) newGameButton.onClick.RemoveListener(HandleNewGame);
+            if (googleSignInButton != null) googleSignInButton.onClick.RemoveListener(HandleGoogleSignIn);
         }
 
-        public void SetHandlers(Action onContinueClicked, Action onNewGameClicked)
+        public void SetHandlers(Action onContinueClicked, Action onNewGameClicked, Action onGoogleSignInClicked = null)
         {
             onContinue = onContinueClicked;
             onNewGame = onNewGameClicked;
+            onGoogleSignIn = onGoogleSignInClicked;
         }
 
         public void SetContinueEnabled(bool enabled)
@@ -49,6 +54,7 @@ namespace DataDrivenDemo.UI
 
             if (continueButton != null) continueButton.gameObject.SetActive(active);
             if (newGameButton != null) newGameButton.gameObject.SetActive(active);
+            if (googleSignInButton != null) googleSignInButton.gameObject.SetActive(active);
         }
 
         public void Show()
@@ -65,10 +71,11 @@ namespace DataDrivenDemo.UI
 
         private void HandleContinue() => onContinue?.Invoke();
         private void HandleNewGame() => onNewGame?.Invoke();
+        private void HandleGoogleSignIn() => onGoogleSignIn?.Invoke();
 
         private void ResolveButtonsIfMissing()
         {
-            if (continueButton != null && newGameButton != null)
+            if (continueButton != null && newGameButton != null && googleSignInButton != null)
                 return;
 
             var searchRoot = root != null ? root.transform : transform;
@@ -77,7 +84,7 @@ namespace DataDrivenDemo.UI
             foreach (var b in buttons)
             {
                 if (b == null) continue;
-                if (continueButton != null && newGameButton != null) break;
+                if (continueButton != null && newGameButton != null && googleSignInButton != null) break;
 
                 var label = b.GetComponentInChildren<TMP_Text>(true);
                 var text = label != null ? label.text : b.gameObject.name;
@@ -86,6 +93,11 @@ namespace DataDrivenDemo.UI
                     continueButton = b;
                 else if (newGameButton == null && text != null && text.Contains("New", StringComparison.OrdinalIgnoreCase))
                     newGameButton = b;
+                else if (googleSignInButton == null && text != null &&
+                         (text.Contains("Google", StringComparison.OrdinalIgnoreCase) ||
+                          text.Contains("Login", StringComparison.OrdinalIgnoreCase) ||
+                          text.Contains("Sign", StringComparison.OrdinalIgnoreCase)))
+                    googleSignInButton = b;
             }
         }
     }
