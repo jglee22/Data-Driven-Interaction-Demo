@@ -12,6 +12,10 @@ namespace DataDrivenDemo.Player
         [SerializeField] private float rotationSpeed = 12f; // slerp speed
         [SerializeField] private float gravity = -18f;
 
+        [Header("Jump")]
+        [SerializeField] private bool enableJump = true;
+        [SerializeField] private float jumpHeight = 1.2f;
+
         [Header("Mobile (simple)")]
         [SerializeField] private bool enableTouchMove = true;
         [SerializeField, Range(0.1f, 0.8f)] private float touchAreaWidthRatio = 0.55f; // left side
@@ -60,6 +64,14 @@ namespace DataDrivenDemo.Player
             // gravity
             if (controller.isGrounded && verticalVelocity.y < 0f)
                 verticalVelocity.y = -1f;
+
+            if (enableJump && controller.isGrounded && Input.GetKeyDown(KeyCode.Space))
+            {
+                // v = sqrt(2 * h * -g)
+                var g = Mathf.Abs(gravity);
+                verticalVelocity.y = Mathf.Sqrt(2f * Mathf.Max(0.1f, jumpHeight) * g);
+            }
+
             verticalVelocity.y += gravity * Time.deltaTime;
 
             var velocity = (move * moveSpeed) + verticalVelocity;

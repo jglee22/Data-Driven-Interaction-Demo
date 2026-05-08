@@ -3,6 +3,7 @@ using UnityEngine;
 using DataDrivenDemo.UI;
 using DataDrivenDemo.Core.Save;
 using DataDrivenDemo.Firebase;
+using System;
 
 namespace DataDrivenDemo.Quest
 {
@@ -19,15 +20,28 @@ namespace DataDrivenDemo.Quest
         [SerializeField] private bool autoLoad = true;
         [SerializeField] private bool autoSave = true;
 
+        [Header("Turn-in")]
+        [SerializeField] private string turnInActionId = "submit_terminal";
+
         private QuestDefinition def;
         private int stepIndex;
         private int stepCount;
         private int coins;
+        private bool turnedIn;
         /// <summary>비동기 로드 전에 초기 상태를 저장소에 쓰면 클라우드 진행도를 덮어쓸 수 있어 차단합니다.</summary>
         private bool allowSaveWrites;
+        private bool disabledByQuestSystem;
 
         private void Awake()
         {
+            // 멀티 퀘스트 런타임(QuestSystem)을 쓰는 씬에서는 단일 퀘스트 매니저가 HUD/트래커에 끼어들면 안 됩니다.
+            if (FindFirstObjectByType<QuestSystem>(FindObjectsInactive.Include) != null)
+            {
+                disabledByQuestSystem = true;
+                enabled = false;
+                return;
+            }
+
             LoadQuest();
             RefreshHud();
         }
@@ -77,11 +91,13 @@ namespace DataDrivenDemo.Quest
 
         private void OnEnable()
         {
+            if (disabledByQuestSystem) return;
             QuestEvents.ActionPerformed += OnActionPerformed;
         }
 
         private void OnDisable()
         {
+            if (disabledByQuestSystem) return;
             QuestEvents.ActionPerformed -= OnActionPerformed;
         }
 
@@ -90,6 +106,7 @@ namespace DataDrivenDemo.Quest
             def = QuestDefinitionLoader.FromTextAsset(questJson);
             stepIndex = 0;
             stepCount = 0;
+            turnedIn = false;
 
             if (def == null || def.steps == null)
                 Debug.LogWarning("[QuestManager] Quest JSON is missing/invalid.");
@@ -101,7 +118,19 @@ namespace DataDrivenDemo.Quest
                 return;
 
             if (IsCompleted())
+            {
+                // 목표 완료 후 제출(보고) 액션이 들어오면 "완료(제출됨)" 상태로 전환
+                if (!turnedIn && !string.IsNullOrWhiteSpace(turnInActionId) &&
+                    string.Equals(actionId, turnInActionId, StringComparison.Ordinal))
+                {
+                    turnedIn = true;
+                    RefreshHud();
+                    hud?.ShowToast("제출 완료!");
+                    if (autoSave)
+                        SaveState();
+                }
                 return;
+            }
 
             var expected = def.steps[stepIndex]?.actionId;
             if (string.IsNullOrWhiteSpace(expected))
@@ -124,6 +153,16 @@ namespace DataDrivenDemo.Quest
 
             stepIndex++;
             stepCount = 0;
+
+                // 마지막 스텝이 제출 액션이면, 완료와 동시에 "제출됨" 처리
+            if (!turnedIn &&
+                IsCompleted() &&
+                !string.IsNullOrWhiteSpace(turnInActionId) &&
+                string.Equals(expected, turnInActionId, StringComparison.Ordinal))
+            {
+                turnedIn = true;
+            }
+
             RefreshHud();
 
             if (IsCompleted())
@@ -159,29 +198,55 @@ namespace DataDrivenDemo.Quest
             if (hud == null)
                 return;
 
-            hud.SetTitle(def != null ? def.title : "퀘스트");
-            hud.SetCoins(coins);
-
-            var total = def?.steps != null ? def.steps.Length : 0;
-            hud.SetProgress(stepIndex, total);
-
-            if (def?.steps == null || def.steps.Length == 0)
+            try
             {
-                hud.SetObjective("퀘스트 데이터가 없습니다.");
-                return;
-            }
+                hud.SetTitle(def != null ? def.title : "퀘스트");
+                hud.SetCoins(coins);
 
-            if (IsCompleted())
+                var total = def?.steps != null ? def.steps.Length : 0;
+                hud.SetProgress(stepIndex, total);
+
+                var hasSteps = def?.steps != null && def.steps.Length > 0;
+                var completed = hasSteps && IsCompleted();
+
+                string objectiveText;
+                string trackerDetail;
+                var trackerStatus = completed ? (turnedIn ? QuestTrackerStatus.Completed : QuestTrackerStatus.TurnInReady) : QuestTrackerStatus.Active;
+
+                if (!hasSteps)
+                {
+                    objectiveText = "퀘스트 데이터가 없습니다.";
+                    trackerDetail = "데이터 없음";
+                    trackerStatus = QuestTrackerStatus.Active;
+                }
+                else if (completed)
+                {
+                    objectiveText = "완료!";
+                    trackerDetail = turnedIn ? "완료" : "보고 가능";
+                }
+                else
+                {
+                    var step = def.steps[stepIndex];
+                    var objective = step?.objective;
+                    var required = Mathf.Max(1, step.requiredCount);
+                    var suffix = required > 1 ? $" ({Mathf.Clamp(stepCount, 0, required)}/{required})" : "";
+                    objectiveText = (string.IsNullOrWhiteSpace(objective) ? "목표 진행" : objective) + suffix;
+                    trackerDetail = string.IsNullOrWhiteSpace(objectiveText) ? "진행 중" : objectiveText;
+                }
+
+                hud.SetObjective(objectiveText);
+
+                // Tracker list (optional) — 완료 상태도 반드시 갱신해야 UI가 바뀜
+                if (def != null && !string.IsNullOrWhiteSpace(def.id))
+                {
+                    QuestTrackerService.Upsert(def.id, def.title, trackerDetail, trackerStatus, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                    hud.RenderTracker(QuestTrackerService.Items);
+                }
+            }
+            finally
             {
-                hud.SetObjective("완료!");
-                return;
+                hud.RefreshQuestJournalIfOpen();
             }
-
-            var step = def.steps[stepIndex];
-            var objective = step?.objective;
-            var required = Mathf.Max(1, step.requiredCount);
-            var suffix = required > 1 ? $" ({Mathf.Clamp(stepCount, 0, required)}/{required})" : "";
-            hud.SetObjective((string.IsNullOrWhiteSpace(objective) ? "목표 진행" : objective) + suffix);
         }
 
         private void TryLoadState()
@@ -221,6 +286,19 @@ namespace DataDrivenDemo.Quest
             stepIndex = Mathf.Max(0, saved.stepIndex);
             stepCount = Mathf.Max(0, saved.stepCount);
             coins = Mathf.Max(0, saved.coins);
+            turnedIn = saved.turnedIn;
+
+            // 이전 저장(turnedIn 필드 없던 시절) 호환: 완료 + 마지막 액션이 제출이면 제출된 것으로 간주
+            if (!turnedIn && saved.completed && def?.steps != null && def.steps.Length > 0 &&
+                !string.IsNullOrWhiteSpace(turnInActionId))
+            {
+                var lastAction = def.steps[def.steps.Length - 1]?.actionId;
+                if (!string.IsNullOrWhiteSpace(lastAction) &&
+                    string.Equals(lastAction, turnInActionId, StringComparison.Ordinal))
+                {
+                    turnedIn = true;
+                }
+            }
 
             // 저장 데이터가 퀘스트 정의보다 더 진행된 경우 안전하게 클램프
             if (def.steps != null)
@@ -246,7 +324,8 @@ namespace DataDrivenDemo.Quest
                 stepIndex = stepIndex,
                 stepCount = stepCount,
                 coins = coins,
-                completed = IsCompleted()
+                completed = IsCompleted(),
+                turnedIn = turnedIn
             };
             SaveServices.QuestSave.SaveQuestState(state);
         }

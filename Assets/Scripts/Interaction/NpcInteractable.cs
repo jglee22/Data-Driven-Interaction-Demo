@@ -10,7 +10,7 @@ namespace DataDrivenDemo.Interaction
 
         public override void Interact(GameObject interactor)
         {
-            QuestEvents.RaiseAction(actionId);
+            QuestEvents.RaiseEvent(new QuestEvent(QuestEventType.Talk, Id, 1, actionId));
             Debug.Log($"[NPC] Interacted: {Id} ({DisplayName}), action={actionId}");
         }
     }

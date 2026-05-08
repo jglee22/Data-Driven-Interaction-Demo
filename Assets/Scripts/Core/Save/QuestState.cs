@@ -10,6 +10,7 @@ namespace DataDrivenDemo.Core.Save
         public int stepCount;
         public int coins;
         public bool completed;
+        public bool turnedIn;
     }
 }
 

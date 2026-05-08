@@ -1,0 +1,22 @@
+{
+  "id": "quest_006",
+  "title": "테스트 퀘스트 006",
+  "reward": { "coins": 1 },
+  "steps": [
+    {
+      "objectives": [
+        { "type": "Talk", "targetId": "npc_006", "requiredCount": 2, "uiText": "NPC에게 2번 말 걸기" }
+      ]
+    },
+    {
+      "objectives": [
+        { "type": "Pickup", "targetId": "item_006", "uiText": "아이템 줍기" }
+      ]
+    },
+    {
+      "objectives": [
+        { "type": "Submit", "targetId": "terminal_006", "uiText": "터미널에 제출하기" }
+      ]
+    }
+  ]
+}

@@ -20,7 +20,7 @@ namespace DataDrivenDemo.Interaction
             if (pickedUp) return;
 
             pickedUp = true;
-            QuestEvents.RaiseAction(actionId);
+            QuestEvents.RaiseEvent(new QuestEvent(QuestEventType.Pickup, Id, 1, actionId));
             Debug.Log($"[Item] Picked up: {Id} ({DisplayName}), action={actionId}");
 
             if (disableAfterPickup)
