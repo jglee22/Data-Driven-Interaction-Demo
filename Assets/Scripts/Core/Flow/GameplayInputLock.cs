@@ -61,11 +61,7 @@ namespace DataDrivenDemo.Core.Flow
             var menuOpen = state == UIState.Menu;
 
             if (playerController != null)
-            {
-                playerController.enabled = !menuOpen;
-                if (menuOpen)
-                    playerController.ResetInputState();
-            }
+                playerController.SetMovementLock(QuarterViewMovementLockSource.Menu, menuOpen);
 
             if (proximityInteractor != null)
                 proximityInteractor.enabled = !menuOpen;

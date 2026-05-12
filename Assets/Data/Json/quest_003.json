@@ -1,21 +1,21 @@
 {
   "id": "quest_003",
-  "title": "테스트 퀘스트 003",
-  "reward": { "coins": 1 },
+  "title": "시설 점검",
+  "reward": { "coins": 40 },
   "steps": [
     {
       "objectives": [
-        { "type": "Talk", "targetId": "npc_003", "requiredCount": 2, "uiText": "NPC에게 2번 말 걸기" }
+        { "type": "Talk", "targetId": "npc_003", "requiredCount": 2, "uiText": "정비 NPC에게 2번 확인받기" }
       ]
     },
     {
       "objectives": [
-        { "type": "Pickup", "targetId": "item_003", "uiText": "아이템 줍기" }
+        { "type": "Pickup", "targetId": "item_003", "uiText": "점검 키트 챙기기" }
       ]
     },
     {
       "objectives": [
-        { "type": "Submit", "targetId": "terminal_003", "uiText": "터미널에 제출하기" }
+        { "type": "Submit", "targetId": "terminal_003", "uiText": "점검 결과 제출하기" }
       ]
     }
   ]

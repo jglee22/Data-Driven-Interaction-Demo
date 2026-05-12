@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DataDrivenDemo.Core.Save;
+using DataDrivenDemo.Interaction;
 using DataDrivenDemo.UI;
 using UnityEngine;
 
@@ -84,6 +85,126 @@ namespace DataDrivenDemo.Quest
 
         public bool IsAccepted(string questId) => !string.IsNullOrWhiteSpace(questId) && runtimes.ContainsKey(questId);
 
+        /// <summary>의뢰 NPC 목록 패널용 상태 문구입니다.</summary>
+        public string GetOfferStatusLabel(string questId)
+        {
+            if (string.IsNullOrWhiteSpace(questId))
+                return "";
+            if (!IsAccepted(questId))
+                return "미수락";
+            if (!runtimes.TryGetValue(questId, out var rt) || rt?.def == null || rt.state == null)
+                return "미수락";
+
+            return ComputeStatus(rt.def, rt.state) switch
+            {
+                QuestTrackerStatus.Active => "진행 중",
+                QuestTrackerStatus.TurnInReady => "보고 가능",
+                QuestTrackerStatus.Completed => "완료",
+                _ => "진행 중"
+            };
+        }
+
+        /// <summary>의뢰 NPC에서 아직 수락하지 않은 퀘스트만 수락 가능합니다.</summary>
+        public bool CanAcceptOffer(string questId)
+        {
+            if (string.IsNullOrWhiteSpace(questId))
+                return false;
+            if (catalog == null || catalog.Get(questId) == null)
+                return false;
+            return !IsAccepted(questId);
+        }
+
+        /// <summary>미수락이면 카탈로그 기준, 수락 후에는 저널과 동일한 요약을 만듭니다.</summary>
+        public bool TryGetOfferDetailText(string questId, out string body)
+        {
+            body = "";
+            if (string.IsNullOrWhiteSpace(questId) || catalog == null)
+                return false;
+
+            var def = catalog.Get(questId);
+            if (def == null)
+                return false;
+
+            if (!IsAccepted(questId))
+            {
+                var lines = new System.Text.StringBuilder();
+                if (def.steps != null && def.steps.Length > 0)
+                {
+                    var o = GetPrimaryObjective(def.steps[0]);
+                    if (!string.IsNullOrWhiteSpace(o?.uiText))
+                        lines.AppendLine(o.uiText);
+                }
+                var coins = def.reward != null ? def.reward.coins : 0;
+                lines.AppendLine($"보상: 코인 {coins}");
+                body = lines.ToString().TrimEnd();
+                return true;
+            }
+
+            return TryGetJournalDetail(questId, out _, out body);
+        }
+
+        public bool TryGetJournalDetail(string questId, out string title, out string body)
+        {
+            title = "";
+            body = "";
+
+            if (string.IsNullOrWhiteSpace(questId))
+                return false;
+
+            if (!runtimes.TryGetValue(questId, out var rt) || rt?.def == null || rt.state == null)
+                return false;
+
+            var def = rt.def;
+            var st = rt.state;
+
+            title = def.title ?? questId;
+
+            var status = ComputeStatus(def, st) switch
+            {
+                QuestTrackerStatus.Active => "진행 중",
+                QuestTrackerStatus.TurnInReady => "보고 가능",
+                QuestTrackerStatus.Completed => "완료",
+                _ => "진행 중"
+            };
+
+            string objective;
+            string progress;
+
+            if (def.steps == null || def.steps.Length == 0)
+            {
+                objective = "퀘스트 데이터가 없습니다.";
+                progress = "-";
+            }
+            else if (st.stepIndex >= def.steps.Length)
+            {
+                objective = st.turnedIn ? "완료" : "보고";
+                progress = $"{def.steps.Length} / {def.steps.Length}";
+            }
+            else
+            {
+                var obj = GetPrimaryObjective(def.steps[st.stepIndex]);
+                var text = obj?.uiText;
+                if (string.IsNullOrWhiteSpace(text))
+                    text = "진행";
+
+                var required = Mathf.Max(1, obj != null ? obj.requiredCount : 1);
+                var cur = Mathf.Clamp(st.stepCount, 0, required);
+                objective = text;
+                progress = required <= 1 ? $"{st.stepIndex + 1} / {def.steps.Length}" : $"{cur} / {required}";
+            }
+
+            var rewardCoins = def.reward != null ? def.reward.coins : 0;
+            var reward = rewardCoins > 0 ? $"{rewardCoins} Coins" : "-";
+
+            body =
+                $"목표\n{objective}\n\n" +
+                $"진행도\n{progress}\n\n" +
+                $"상태\n{status}\n\n" +
+                $"보상\n{reward}";
+
+            return true;
+        }
+
         public bool Abandon(string questId, bool clearSavedState = true)
         {
             if (string.IsNullOrWhiteSpace(questId))
@@ -107,19 +228,44 @@ namespace DataDrivenDemo.Quest
 
         public void ResetAllQuests(bool clearSavedStates = true)
         {
-            var ids = runtimes.Keys.ToList();
+            // 리셋 직후 runtimes.Keys 가 비면 저장소 삭제가 한 건도 안 돌아가고,
+            // 다음 플레이 Awake 에서 TryAutoAcceptSaved 가 남아 있는 진행 저장만 보고 자동 수락되는 버그가 난다.
+            catalog ??= FindFirstObjectByType<QuestCatalog>(FindObjectsInactive.Include);
+            catalog?.Rebuild();
+
+            var clearIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var id in runtimes.Keys)
+            {
+                if (!string.IsNullOrWhiteSpace(id))
+                    clearIds.Add(id);
+            }
+
+            if (catalog != null)
+            {
+                foreach (var def in catalog.All())
+                {
+                    if (def != null && !string.IsNullOrWhiteSpace(def.id))
+                        clearIds.Add(def.id);
+                }
+            }
+
             runtimes.Clear();
             QuestTrackerService.ClearAll();
             RenderUi();
 
             if (!clearSavedStates)
+            {
+                SaveAcceptedList();
                 return;
+            }
 
-            foreach (var id in ids)
+            foreach (var id in clearIds)
+            {
                 SaveServices.QuestSave.ClearQuestState(id);
+                localFallbackSave.ClearQuestState(id);
+            }
 
-            PlayerPrefs.DeleteKey(AcceptedKey);
-            PlayerPrefs.Save();
+            SaveAcceptedList();
         }
 
         private void LoadAcceptedList()
@@ -336,6 +482,41 @@ namespace DataDrivenDemo.Quest
         {
             hud?.RenderTracker(QuestTrackerService.Items);
             hud?.RefreshQuestJournalIfOpen();
+            foreach (var m in UnityEngine.Object.FindObjectsByType<QuestObjectiveWorldMarkerManager>(
+                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (m != null && m.isActiveAndEnabled)
+                    m.RefreshFrom(this);
+            }
+        }
+
+        /// <summary>월드 마커용: 수락된 퀘스트의 현재 목표(또는 보고 대기) 오브젝트 Transform.</summary>
+        public void GetWorldMarkerObjectiveAnchors(HashSet<Transform> anchors)
+        {
+            if (anchors == null)
+                return;
+            anchors.Clear();
+
+            foreach (var kv in runtimes)
+            {
+                var rt = kv.Value;
+                var def = rt?.def;
+                var st = rt?.state;
+                if (def?.steps == null || st == null)
+                    continue;
+
+                QuestObjective obj = null;
+                if (st.stepIndex < def.steps.Length)
+                    obj = GetPrimaryObjective(def.steps[st.stepIndex]);
+                else if (!st.turnedIn && IsTurnInQuest(def))
+                    obj = GetLastObjective(def);
+
+                if (obj == null || string.IsNullOrWhiteSpace(obj.targetId))
+                    continue;
+
+                if (TryFindInteractableByTargetId(obj.targetId.Trim(), out var it))
+                    anchors.Add(it.transform);
+            }
         }
 
         private static QuestTrackerStatus ComputeStatus(QuestDefinition def, QuestState st)
@@ -367,6 +548,26 @@ namespace DataDrivenDemo.Quest
                 return text;
 
             return $"{text} ({Mathf.Clamp(st.stepCount, 0, required)}/{required})";
+        }
+
+        private static bool TryFindInteractableByTargetId(string targetId, out InteractableBase found)
+        {
+            found = null;
+            if (string.IsNullOrWhiteSpace(targetId))
+                return false;
+
+            foreach (var b in UnityEngine.Object.FindObjectsByType<InteractableBase>(FindObjectsInactive.Include,
+                         FindObjectsSortMode.None))
+            {
+                if (b == null)
+                    continue;
+                if (!string.Equals(b.Id, targetId, StringComparison.Ordinal))
+                    continue;
+                found = b;
+                return true;
+            }
+
+            return false;
         }
 
         private static bool IsTurnInQuest(QuestDefinition def)

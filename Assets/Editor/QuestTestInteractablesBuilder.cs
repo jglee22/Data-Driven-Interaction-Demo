@@ -6,9 +6,13 @@ using UnityEngine;
 
 namespace DataDrivenDemo.EditorTools
 {
+    /// <summary>
+    /// 퀘스트 001은 씬에 있는 npc_001 / item_001 / terminal_001를 그대로 사용합니다.
+    /// 이 빌더는 002~005용 복제 오브젝트만 추가합니다(navigationId는 npc_002 등).
+    /// </summary>
     public static class QuestTestInteractablesBuilder
     {
-        [MenuItem("Tools/DataDrivenDemo/Build Test Interactables (002~010)")]
+        [MenuItem("Tools/DataDrivenDemo/Build Test Interactables (002~005)")]
         public static void Build()
         {
             var scene = EditorSceneManager.GetActiveScene();
@@ -30,21 +34,21 @@ namespace DataDrivenDemo.EditorTools
 
             Undo.IncrementCurrentGroup();
             var undoGroup = Undo.GetCurrentGroup();
-            Undo.SetCurrentGroupName("Build Test Interactables 002~010");
+            Undo.SetCurrentGroupName("Build Test Interactables 002~005");
 
-            var container = GetOrCreateContainer("TestInteractables_002_010");
+            var container = GetOrCreateContainer("TestInteractables_002_005");
             var npcFolder = GetOrCreateChild(container.transform, "NPCs");
             var itemFolder = GetOrCreateChild(container.transform, "Items");
             var terminalFolder = GetOrCreateChild(container.transform, "Terminals");
 
             const int from = 2;
-            const int to = 10;
+            const int to = 5;
             var created = 0;
             var skipped = 0;
             var moved = 0;
 
             // 좁은 필드에서도 들어가게: 그리드 배치(여러 줄)
-            const int columns = 3;          // 002~010을 3열로 배치
+            const int columns = 2;          // 002~005를 2열로 배치
             const float colSpacing = 1.25f; // 열 간격
             const float rowSpacing = 1.15f; // 행 간격
             const float laneSpacing = 0.95f; // NPC/Item/Terminal 라인 간격(Z)
@@ -121,7 +125,7 @@ namespace DataDrivenDemo.EditorTools
 
             Undo.CollapseUndoOperations(undoGroup);
             EditorSceneManager.MarkSceneDirty(scene);
-            Debug.Log($"[QuestTestInteractablesBuilder] 완료. created={created}, moved={moved}, processedSets={skipped} (npc/item/terminal 002~010)");
+            Debug.Log($"[QuestTestInteractablesBuilder] 완료. created={created}, moved={moved}, processedSets={skipped} (npc/item/terminal 002~005)");
         }
 
         private static GameObject GetOrCreateContainer(string name)

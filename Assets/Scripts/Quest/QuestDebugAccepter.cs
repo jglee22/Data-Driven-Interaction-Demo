@@ -12,16 +12,17 @@ namespace DataDrivenDemo.Quest
     [DisallowMultipleComponent]
     public sealed class QuestDebugAccepter : MonoBehaviour
     {
-        [Header("Quest JSON Assets (size <= 10 recommended)")]
+        [Header("Quest JSON Assets (size <= 5 recommended)")]
         [SerializeField] private TextAsset[] questJsons;
 
         [Header("Hotkeys")]
         [SerializeField] private bool enable = true;
+        [Tooltip("의뢰 NPC UI만 쓸 때 끄면 F1~F5 수락 단축키만 비활성화됩니다. (F12 초기화는 따로 동작합니다.)")]
+        [SerializeField] private bool acceptShortcutKeys = true;
         [SerializeField] private bool showToast = true;
         [SerializeField] private KeyCode[] acceptKeys =
         {
-            KeyCode.F1, KeyCode.F2, KeyCode.F3, KeyCode.F4, KeyCode.F5,
-            KeyCode.F6, KeyCode.F7, KeyCode.F8, KeyCode.F9, KeyCode.F10
+            KeyCode.F1, KeyCode.F2, KeyCode.F3, KeyCode.F4, KeyCode.F5
         };
 
         [SerializeField] private KeyCode clearAllKey = KeyCode.F12;
@@ -65,12 +66,15 @@ namespace DataDrivenDemo.Quest
             if (!enable)
                 return;
 
-            for (var i = 0; i < acceptKeys.Length; i++)
+            if (acceptShortcutKeys)
             {
-                if (!Input.GetKeyDown(acceptKeys[i]))
-                    continue;
+                for (var i = 0; i < acceptKeys.Length; i++)
+                {
+                    if (!Input.GetKeyDown(acceptKeys[i]))
+                        continue;
 
-                AcceptByIndex(i);
+                    AcceptByIndex(i);
+                }
             }
 
             if (Input.GetKeyDown(clearAllKey))

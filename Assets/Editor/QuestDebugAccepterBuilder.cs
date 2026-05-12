@@ -10,7 +10,7 @@ namespace DataDrivenDemo.EditorTools
     {
         private const string JsonDir = "Assets/Data/Json";
 
-        [MenuItem("Tools/DataDrivenDemo/Build Quest Debug Accepter (F1~F10)")]
+        [MenuItem("Tools/DataDrivenDemo/Build Quest Debug Accepter (F1~F5)")]
         public static void Build()
         {
             var scene = EditorSceneManager.GetActiveScene();
@@ -28,17 +28,17 @@ namespace DataDrivenDemo.EditorTools
                 return;
             }
 
-            EnsureSampleJsons();
+            EnsureSampleJsonsMissingOnly();
 
             var go = new GameObject("QuestDebugAccepter", typeof(QuestDebugAccepter));
             Undo.RegisterCreatedObjectUndo(go, "Create QuestDebugAccepter");
 
             var accepter = go.GetComponent<QuestDebugAccepter>();
 
-            var assets = new TextAsset[10];
-            for (var i = 0; i < 10; i++)
+            var assets = new TextAsset[5];
+            for (var i = 0; i < 5; i++)
             {
-                var path = $"{JsonDir}/quest_{(i + 2).ToString("000")}.json";
+                var path = $"{JsonDir}/quest_{(i + 1).ToString("000")}.json";
                 assets[i] = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
             }
 
@@ -46,20 +46,33 @@ namespace DataDrivenDemo.EditorTools
 
             Selection.activeGameObject = go;
             EditorSceneManager.MarkSceneDirty(scene);
-            Debug.Log("[QuestDebugAccepterBuilder] 생성 완료. Play 중 F1~F10으로 수락, F12로 초기화.");
+            Debug.Log("[QuestDebugAccepterBuilder] 생성 완료. Play 중 F1~F5로 수락, F12로 초기화.");
         }
 
-        private static void EnsureSampleJsons()
+        /// <summary>
+        /// quest_002~005 JSON이 없을 때만 샘플을 만듭니다. 데모용으로 수정한 파일은 덮어쓰지 않습니다.
+        /// </summary>
+        private static void EnsureSampleJsonsMissingOnly()
         {
             if (!AssetDatabase.IsValidFolder("Assets/Data"))
                 AssetDatabase.CreateFolder("Assets", "Data");
             if (!AssetDatabase.IsValidFolder("Assets/Data/Json"))
                 AssetDatabase.CreateFolder("Assets/Data", "Json");
 
-            for (var i = 0; i < 10; i++)
+            var created = 0;
+            var skipped = 0;
+
+            for (var i = 0; i < 4; i++)
             {
-                var id = (i + 2).ToString("000");
+                var id = (i + 2).ToString("000"); // quest_002~005만 생성/갱신
                 var assetPath = $"{JsonDir}/quest_{id}.json";
+                var onDisk = Path.Combine(Application.dataPath, "Data", "Json", $"quest_{id}.json");
+                if (File.Exists(onDisk))
+                {
+                    skipped++;
+                    continue;
+                }
+
                 var questId = $"quest_{id}";
                 var title = $"테스트 퀘스트 {id}";
                 // 현업형 테스트: type + targetId 로 매칭해서 "같이 올라가는" 문제를 피함.
@@ -92,11 +105,14 @@ namespace DataDrivenDemo.EditorTools
                     "  ]\n" +
                     "}\n";
 
-                File.WriteAllText(assetPath, json);
+                File.WriteAllText(onDisk, json);
                 AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
+                created++;
             }
 
             AssetDatabase.Refresh();
+            if (created > 0 || skipped > 0)
+                Debug.Log($"[QuestDebugAccepterBuilder] 샘플 JSON: 새로 생성 {created}개, 기존 유지 {skipped}개(덮어쓰지 않음).");
         }
 
         private static void SetPrivateField(object target, string fieldName, object value)

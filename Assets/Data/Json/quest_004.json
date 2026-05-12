@@ -1,21 +1,21 @@
 {
   "id": "quest_004",
-  "title": "테스트 퀘스트 004",
-  "reward": { "coins": 1 },
+  "title": "분실물 찾기",
+  "reward": { "coins": 60 },
   "steps": [
     {
       "objectives": [
-        { "type": "Talk", "targetId": "npc_004", "requiredCount": 2, "uiText": "NPC에게 2번 말 걸기" }
+        { "type": "Talk", "targetId": "npc_004", "requiredCount": 1, "uiText": "분실물 신고 NPC와 대화하기" }
       ]
     },
     {
       "objectives": [
-        { "type": "Pickup", "targetId": "item_004", "uiText": "아이템 줍기" }
+        { "type": "Pickup", "targetId": "item_004", "uiText": "분실물 회수하기" }
       ]
     },
     {
       "objectives": [
-        { "type": "Submit", "targetId": "terminal_004", "uiText": "터미널에 제출하기" }
+        { "type": "Submit", "targetId": "terminal_004", "uiText": "보관함에 등록하기" }
       ]
     }
   ]

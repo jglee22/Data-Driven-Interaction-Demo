@@ -1,21 +1,21 @@
 {
   "id": "quest_005",
-  "title": "테스트 퀘스트 005",
-  "reward": { "coins": 1 },
+  "title": "초기화 절차",
+  "reward": { "coins": 100 },
   "steps": [
     {
       "objectives": [
-        { "type": "Talk", "targetId": "npc_005", "requiredCount": 2, "uiText": "NPC에게 2번 말 걸기" }
+        { "type": "Talk", "targetId": "npc_005", "requiredCount": 1, "uiText": "관리자에게 승인 받기" }
       ]
     },
     {
       "objectives": [
-        { "type": "Pickup", "targetId": "item_005", "uiText": "아이템 줍기" }
+        { "type": "Pickup", "targetId": "item_005", "uiText": "보안 토큰 회수하기" }
       ]
     },
     {
       "objectives": [
-        { "type": "Submit", "targetId": "terminal_005", "uiText": "터미널에 제출하기" }
+        { "type": "Submit", "targetId": "terminal_005", "uiText": "시스템 초기화 실행하기" }
       ]
     }
   ]

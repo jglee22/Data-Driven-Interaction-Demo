@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using DataDrivenDemo.Quest;
@@ -105,6 +106,7 @@ namespace DataDrivenDemo.UI
 
                 if (i >= list.Count)
                 {
+                    row.SetSelected(false);
                     row.gameObject.SetActive(false);
                     continue;
                 }
@@ -135,11 +137,48 @@ namespace DataDrivenDemo.UI
         public void SelectQuest(string questId, string title, string body)
         {
             selectedQuestId = questId;
-            if (detailTitle != null) detailTitle.text = title ?? "";
-            if (detailBody != null) detailBody.text = body ?? "";
+            var sys = FindFirstObjectByType<QuestSystem>(FindObjectsInactive.Include);
+            if (sys != null && sys.TryGetJournalDetail(questId, out var t, out var b))
+            {
+                if (detailTitle != null) detailTitle.text = t ?? "";
+                if (detailBody != null) detailBody.text = b ?? "";
+            }
+            else
+            {
+                if (detailTitle != null) detailTitle.text = title ?? "";
+                if (detailBody != null) detailBody.text = body ?? "";
+            }
 
             if (abandonButton != null)
-                abandonButton.gameObject.SetActive(!string.IsNullOrWhiteSpace(selectedQuestId));
+                abandonButton.gameObject.SetActive(ShouldShowAbandonForSelectedQuest());
+
+            ApplyRowSelection();
+        }
+
+        /// <summary>완료된 퀘스트는 포기할 수 없으므로 버튼을 숨깁니다.</summary>
+        private bool ShouldShowAbandonForSelectedQuest()
+        {
+            if (string.IsNullOrWhiteSpace(selectedQuestId))
+                return false;
+
+            var it = QuestTrackerService.Items?
+                .FirstOrDefault(x =>
+                    x != null && string.Equals(x.questId, selectedQuestId, StringComparison.Ordinal));
+            if (it == null)
+                return true;
+
+            return it.status != QuestTrackerStatus.Completed;
+        }
+
+        private void ApplyRowSelection()
+        {
+            foreach (var row in rows)
+            {
+                if (row == null || !row.gameObject.activeSelf) continue;
+                var on = !string.IsNullOrEmpty(selectedQuestId) &&
+                         string.Equals(row.QuestId, selectedQuestId, StringComparison.Ordinal);
+                row.SetSelected(on);
+            }
         }
 
         private void Awake()

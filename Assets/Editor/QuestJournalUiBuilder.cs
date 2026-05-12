@@ -1,8 +1,11 @@
+using DataDrivenDemo.Interaction;
+using DataDrivenDemo.Quest;
 using DataDrivenDemo.UI;
 using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace DataDrivenDemo.EditorTools
@@ -214,7 +217,7 @@ namespace DataDrivenDemo.EditorTools
             detBodyLe.flexibleHeight = 1f;
             detBodyLe.minHeight = 120f;
 
-            // 포기(삭제) 버튼
+            // 퀘스트 포기 버튼
             var abandonGo = new GameObject("AbandonButton", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
             Undo.RegisterCreatedObjectUndo(abandonGo, "Create Abandon Button");
             abandonGo.transform.SetParent(detailPanel.transform, false);
@@ -236,7 +239,7 @@ namespace DataDrivenDemo.EditorTools
             abandonLabelRt.offsetMin = new Vector2(12, 6);
             abandonLabelRt.offsetMax = new Vector2(-12, -6);
             var abandonTmp = abandonLabelGo.GetComponent<TextMeshProUGUI>();
-            abandonTmp.text = "포기 (삭제)";
+            abandonTmp.text = "퀘스트 포기";
             abandonTmp.fontSize = 22;
             abandonTmp.color = Color.white;
             abandonTmp.alignment = TextAlignmentOptions.Center;
@@ -459,6 +462,617 @@ namespace DataDrivenDemo.EditorTools
             }
             f.SetValue(target, value);
             EditorUtility.SetDirty((Object)target);
+        }
+    }
+
+    /// <summary>의뢰 목록 UI + 의뢰 NPC 자동 연결. 의뢰는 npc_010 전용(퀘스트 001 Talk 대상 npc_001 은 그대로 둠).</summary>
+    public static class QuestOfferUiBuilder
+    {
+        private const string OfferRootName = "QuestOffer";
+
+        /// <summary>의뢰만 받는 NPC id. quest_001 등은 npc_001 과 Talk 하므로 여기에 두면 안 됩니다.</summary>
+        private const string QuestGiverNpcId = "npc_010";
+
+        /// <summary>npc_010 이 없을 때 복제해 의뢰 NPC 를 만들 템플릿(반드시 NpcInteractable).</summary>
+        private const string QuestGiverSpawnTemplateNpcId = "npc_001";
+
+        /// <summary>데모 스코프: 의뢰 목록은 1~5번만. (비우면 런타임에서 카탈로그 전체 노출)</summary>
+        private static readonly string[] DemoScopedOfferQuestIds =
+        {
+            "quest_001",
+            "quest_002",
+            "quest_003",
+            "quest_004",
+            "quest_005",
+        };
+
+        public static bool TryBuildOfferUi(out QuestOfferView offerView)
+        {
+            offerView = null;
+
+            var scene = EditorSceneManager.GetActiveScene();
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                Debug.LogWarning("[QuestOfferUiBuilder] 활성 씬이 없습니다.");
+                return false;
+            }
+
+            var canvas = Object.FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
+            if (canvas == null)
+            {
+                Debug.LogWarning("[QuestOfferUiBuilder] Canvas 를 찾을 수 없습니다.");
+                return false;
+            }
+
+            if (canvas.gameObject.GetComponent<GraphicRaycaster>() == null)
+            {
+                Undo.AddComponent<GraphicRaycaster>(canvas.gameObject);
+                EditorUtility.SetDirty(canvas.gameObject);
+            }
+
+            if (Object.FindFirstObjectByType<EventSystem>(FindObjectsInactive.Include) == null)
+            {
+                Debug.LogWarning(
+                    "[QuestOfferUiBuilder] 씬에 EventSystem 이 없습니다. 수락/버튼 클릭이 안 될 수 있으니 Hierarchy 에 GameObject > UI > Event System 을 추가하세요.");
+            }
+
+            if (Object.FindFirstObjectByType<QuestOfferView>(FindObjectsInactive.Include) != null)
+            {
+                Debug.LogWarning("[QuestOfferUiBuilder] 이미 QuestOffer 가 있습니다.");
+                offerView = Object.FindFirstObjectByType<QuestOfferView>(FindObjectsInactive.Include);
+                return false;
+            }
+
+            var rootGo = new GameObject(OfferRootName, typeof(RectTransform), typeof(QuestOfferView));
+            Undo.RegisterCreatedObjectUndo(rootGo, "Create QuestOffer");
+            rootGo.transform.SetParent(canvas.transform, false);
+            rootGo.SetActive(false);
+
+            var rootRt = rootGo.GetComponent<RectTransform>();
+            OfferStretchFull(rootRt);
+
+            var offer = rootGo.GetComponent<QuestOfferView>();
+
+            var backdropGo = new GameObject("Backdrop", typeof(RectTransform), typeof(Image), typeof(QuestOfferBackdropCloser));
+            Undo.RegisterCreatedObjectUndo(backdropGo, "Offer Backdrop");
+            backdropGo.transform.SetParent(rootGo.transform, false);
+            OfferStretchFull(backdropGo.GetComponent<RectTransform>());
+            var backdropImg = backdropGo.GetComponent<Image>();
+            backdropImg.color = new Color(0f, 0f, 0f, 0.5f);
+
+            var modalGo = new GameObject("Modal", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup), typeof(LayoutElement));
+            Undo.RegisterCreatedObjectUndo(modalGo, "Offer Modal");
+            modalGo.transform.SetParent(rootGo.transform, false);
+            var modalRt = modalGo.GetComponent<RectTransform>();
+            modalRt.anchorMin = modalRt.anchorMax = modalRt.pivot = new Vector2(0.5f, 0.5f);
+            modalRt.sizeDelta = new Vector2(520f, 560f);
+            modalRt.anchoredPosition = Vector2.zero;
+
+            var modalImg = modalGo.GetComponent<Image>();
+            modalImg.color = new Color(0.06f, 0.06f, 0.09f, 0.96f);
+            modalImg.raycastTarget = true;
+
+            var modalVlg = modalGo.GetComponent<VerticalLayoutGroup>();
+            modalVlg.padding = new RectOffset(18, 18, 14, 16);
+            modalVlg.spacing = 14;
+            modalVlg.childAlignment = TextAnchor.UpperLeft;
+            modalVlg.childControlHeight = true;
+            modalVlg.childControlWidth = true;
+            modalVlg.childForceExpandHeight = false;
+            modalVlg.childForceExpandWidth = true;
+
+            var headerGo = new GameObject("Title", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
+            Undo.RegisterCreatedObjectUndo(headerGo, "Offer Title");
+            headerGo.transform.SetParent(modalGo.transform, false);
+            OfferStretchTopFullWidth(headerGo.GetComponent<RectTransform>());
+            var headerTmp = headerGo.GetComponent<TextMeshProUGUI>();
+            headerTmp.text = "\uC758\uB8B0 \uBAA9\uB85D";
+            headerTmp.fontSize = 26;
+            headerTmp.fontStyle = FontStyles.Bold;
+            headerTmp.color = Color.white;
+            headerTmp.alignment = TextAlignmentOptions.Left;
+            headerGo.GetComponent<LayoutElement>().preferredHeight = 36f;
+
+            var scrollArea = new GameObject("ScrollArea", typeof(RectTransform), typeof(Image), typeof(ScrollRect), typeof(LayoutElement));
+            Undo.RegisterCreatedObjectUndo(scrollArea, "Offer Scroll");
+            scrollArea.transform.SetParent(modalGo.transform, false);
+            var scrollAreaRt = scrollArea.GetComponent<RectTransform>();
+            scrollAreaRt.sizeDelta = Vector2.zero;
+            scrollArea.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.04f);
+            scrollArea.GetComponent<Image>().raycastTarget = true;
+
+            var scrollLe = scrollArea.GetComponent<LayoutElement>();
+            scrollLe.flexibleHeight = 1f;
+            scrollLe.preferredHeight = 240f;
+            scrollLe.minHeight = 180f;
+
+            var viewportGo = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D), typeof(Image));
+            Undo.RegisterCreatedObjectUndo(viewportGo, "Offer Viewport");
+            viewportGo.transform.SetParent(scrollArea.transform, false);
+            var viewportRt = viewportGo.GetComponent<RectTransform>();
+            OfferStretchFull(viewportRt);
+            var viewportImg = viewportGo.GetComponent<Image>();
+            viewportImg.color = new Color(1f, 1f, 1f, 0.02f);
+            viewportImg.raycastTarget = true;
+
+            var contentGo = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+            Undo.RegisterCreatedObjectUndo(contentGo, "Offer Content");
+            contentGo.transform.SetParent(viewportGo.transform, false);
+            var contentRt = contentGo.GetComponent<RectTransform>();
+            contentRt.anchorMin = new Vector2(0f, 1f);
+            contentRt.anchorMax = new Vector2(1f, 1f);
+            contentRt.pivot = new Vector2(0.5f, 1f);
+            contentRt.anchoredPosition = Vector2.zero;
+            contentRt.sizeDelta = Vector2.zero;
+
+            var contentVlg = contentGo.GetComponent<VerticalLayoutGroup>();
+            contentVlg.padding = new RectOffset(6, 6, 6, 6);
+            contentVlg.spacing = 10;
+            contentVlg.childAlignment = TextAnchor.UpperLeft;
+            contentVlg.childControlHeight = true;
+            contentVlg.childControlWidth = true;
+            contentVlg.childForceExpandHeight = false;
+            contentVlg.childForceExpandWidth = true;
+            contentGo.GetComponent<ContentSizeFitter>().horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            contentGo.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            var scrollRect = scrollArea.GetComponent<ScrollRect>();
+            scrollRect.viewport = viewportRt;
+            scrollRect.content = contentRt;
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            scrollRect.scrollSensitivity = 24f;
+
+            var rowPrefab = BuildOfferRowTemplate(contentGo.transform);
+
+            var hintGo = new GameObject("Hint", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
+            Undo.RegisterCreatedObjectUndo(hintGo, "Offer Hint");
+            hintGo.transform.SetParent(modalGo.transform, false);
+            OfferStretchTopFullWidth(hintGo.GetComponent<RectTransform>());
+            var hintTmp = hintGo.GetComponent<TextMeshProUGUI>();
+            hintTmp.text = "";
+            hintTmp.fontSize = 16;
+            hintTmp.color = new Color(1f, 1f, 1f, 0.55f);
+            hintTmp.textWrappingMode = TextWrappingModes.Normal;
+            hintGo.GetComponent<LayoutElement>().preferredHeight = 24f;
+
+            // 상세 텍스트: Overflow 그대로면 레이아웃 높이를 무시하고 모달 밖으로 그려지므로 Mask + 세로 스크롤 영역 고정.
+            var detailScrollArea =
+                new GameObject("DetailScroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect), typeof(LayoutElement));
+            Undo.RegisterCreatedObjectUndo(detailScrollArea, "Offer Detail Scroll");
+            detailScrollArea.transform.SetParent(modalGo.transform, false);
+            OfferStretchTopFullWidth(detailScrollArea.GetComponent<RectTransform>());
+            var detailScrollImg = detailScrollArea.GetComponent<Image>();
+            detailScrollImg.color = new Color(1f, 1f, 1f, 0.02f);
+            detailScrollImg.raycastTarget = true;
+
+            var detailScrollLe = detailScrollArea.GetComponent<LayoutElement>();
+            detailScrollLe.preferredHeight = 152f;
+            detailScrollLe.minHeight = 96f;
+            detailScrollLe.flexibleHeight = 0f;
+
+            var dViewportGo = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D), typeof(Image));
+            Undo.RegisterCreatedObjectUndo(dViewportGo, "Offer Detail Viewport");
+            dViewportGo.transform.SetParent(detailScrollArea.transform, false);
+            var dViewportRt = dViewportGo.GetComponent<RectTransform>();
+            OfferStretchFull(dViewportRt);
+            var dVpImg = dViewportGo.GetComponent<Image>();
+            dVpImg.color = new Color(1f, 1f, 1f, 0.001f);
+            dVpImg.raycastTarget = false;
+
+            var detailContentGo =
+                new GameObject("DetailContent", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(ContentSizeFitter));
+            Undo.RegisterCreatedObjectUndo(detailContentGo, "Offer Detail Content");
+            detailContentGo.transform.SetParent(dViewportGo.transform, false);
+            var dContentRt = detailContentGo.GetComponent<RectTransform>();
+            dContentRt.anchorMin = new Vector2(0f, 1f);
+            dContentRt.anchorMax = new Vector2(1f, 1f);
+            dContentRt.pivot = new Vector2(0.5f, 1f);
+            dContentRt.anchoredPosition = Vector2.zero;
+            dContentRt.sizeDelta = Vector2.zero;
+
+            var dCsf = detailContentGo.GetComponent<ContentSizeFitter>();
+            dCsf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            dCsf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            var detailTmp = detailContentGo.GetComponent<TextMeshProUGUI>();
+            detailTmp.text = "";
+            detailTmp.fontSize = 18;
+            detailTmp.color = new Color(1f, 1f, 1f, 0.9f);
+            detailTmp.textWrappingMode = TextWrappingModes.Normal;
+            detailTmp.overflowMode = TextOverflowModes.Overflow;
+            detailTmp.margin = new Vector4(4f, 2f, 4f, 6f);
+            detailTmp.richText = true;
+
+            var dScrollRect = detailScrollArea.GetComponent<ScrollRect>();
+            dScrollRect.viewport = dViewportRt;
+            dScrollRect.content = dContentRt;
+            dScrollRect.horizontal = false;
+            dScrollRect.vertical = true;
+            dScrollRect.movementType = ScrollRect.MovementType.Clamped;
+            dScrollRect.scrollSensitivity = 24f;
+
+            var btnRow = new GameObject("Buttons", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
+            Undo.RegisterCreatedObjectUndo(btnRow, "Offer Buttons Row");
+            btnRow.transform.SetParent(modalGo.transform, false);
+            OfferStretchTopFullWidth(btnRow.GetComponent<RectTransform>());
+            var offerBtnHlg = btnRow.GetComponent<HorizontalLayoutGroup>();
+            offerBtnHlg.childAlignment = TextAnchor.MiddleRight;
+            offerBtnHlg.spacing = 14;
+            offerBtnHlg.childForceExpandHeight = false;
+            offerBtnHlg.childForceExpandWidth = false;
+            offerBtnHlg.childControlHeight = true;
+            offerBtnHlg.childControlWidth = true;
+            btnRow.GetComponent<LayoutElement>().preferredHeight = 48f;
+
+            var acceptBtn = BuildOfferTextButton(btnRow.transform, "AcceptBtn", "\uC218\uB77D");
+            var closeBtn = BuildOfferTextButton(btnRow.transform, "CloseBtn", "\uB2EB\uAE30");
+
+            OfferSetPrivateField(offer, "panelRoot", rootGo);
+            OfferSetPrivateField(offer, "scrollContent", contentGo.transform);
+            OfferSetPrivateField(offer, "rowPrefab", rowPrefab);
+            OfferSetPrivateField(offer, "detailText", detailTmp);
+            OfferSetPrivateField(offer, "hintText", hintTmp);
+            OfferSetPrivateField(offer, "acceptButton", acceptBtn);
+            OfferSetPrivateField(offer, "closeButton", closeBtn);
+
+            Selection.activeGameObject = rootGo;
+            EditorSceneManager.MarkSceneDirty(scene);
+            offerView = offer;
+            Debug.Log("[QuestOfferUiBuilder] QuestOffer UI 생성 완료.");
+            return true;
+        }
+
+        [MenuItem("Tools/DataDrivenDemo/Build Quest Offer UI")]
+        [MenuItem("DataDrivenDemo/Build Quest Offer UI", false, 1)]
+        private static void BuildOfferMenuItem()
+        {
+            TryBuildOfferUi(out _);
+        }
+
+        [MenuItem("Tools/DataDrivenDemo/Wire Quest Offer + npc_010 Giver")]
+        [MenuItem("DataDrivenDemo/Wire Quest Offer (npc_010)", false, 2)]
+        private static void WireOfferAndQuestGiverNpc()
+        {
+            var scene = EditorSceneManager.GetActiveScene();
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                Debug.LogWarning("[QuestOfferUiBuilder] Wire: 활성 씬이 없습니다.");
+                return;
+            }
+
+            QuestOfferView offer =
+                Object.FindFirstObjectByType<QuestOfferView>(FindObjectsInactive.Include);
+            if (offer == null)
+            {
+                TryBuildOfferUi(out offer);
+                offer = Object.FindFirstObjectByType<QuestOfferView>(FindObjectsInactive.Include);
+            }
+
+            if (offer == null)
+            {
+                Debug.LogWarning("[QuestOfferUiBuilder] Wire: QuestOfferView 를 만들 수 없습니다.");
+                return;
+            }
+
+            // 1) 이미 npc_010 QuestGiver 가 있으면 연결만 갱신
+            foreach (var existing in Object.FindObjectsByType<QuestGiverInteractable>(FindObjectsInactive.Include,
+                         FindObjectsSortMode.None))
+            {
+                if (existing == null || !string.Equals(existing.Id, QuestGiverNpcId, System.StringComparison.Ordinal))
+                    continue;
+
+                ApplyQuestGiverSerialized(existing, offer);
+                EditorUtility.SetDirty(existing.gameObject);
+                EditorSceneManager.MarkSceneDirty(scene);
+                DisableQuestDebugAcceptShortcuts();
+                Selection.activeGameObject = existing.gameObject;
+                Debug.Log("[QuestOfferUiBuilder] npc_010 QuestGiver 가 이미 있어 Offer 연결만 갱신했습니다.");
+                return;
+            }
+
+            // 2) npc_010 NpcInteractable → QuestGiver 로 교체
+            foreach (var npc in Object.FindObjectsByType<NpcInteractable>(FindObjectsInactive.Include,
+                         FindObjectsSortMode.None))
+            {
+                if (npc == null || !string.Equals(npc.Id, QuestGiverNpcId, System.StringComparison.Ordinal))
+                    continue;
+
+                var go = npc.gameObject;
+                Undo.DestroyObjectImmediate(npc);
+                var giver = Undo.AddComponent<QuestGiverInteractable>(go);
+                ApplyQuestGiverSerialized(giver, offer);
+                EditorUtility.SetDirty(go);
+                EditorSceneManager.MarkSceneDirty(scene);
+                DisableQuestDebugAcceptShortcuts();
+                Selection.activeGameObject = go;
+                Debug.Log("[QuestOfferUiBuilder] npc_010 NpcInteractable 을 QuestGiver 로 바꿨습니다.");
+                return;
+            }
+
+            // 3) npc_010 이 없으면 npc_001 을 복제해 의뢰 전용 NPC 생성(npc_001 Talk 목표 유지)
+            var talkRoot = FindGameObjectWithSerializedInteractableId(QuestGiverSpawnTemplateNpcId);
+            if (talkRoot == null)
+            {
+                Debug.LogWarning(
+                    $"[QuestOfferUiBuilder] Wire: id 가 {QuestGiverSpawnTemplateNpcId} 인 Interactable 이 씬에 없습니다.");
+                return;
+            }
+
+            if (talkRoot.GetComponents<QuestGiverInteractable>().Length > 0)
+            {
+                RestoreTalkNpcOnGuideObject(talkRoot);
+                EditorUtility.SetDirty(talkRoot);
+                EditorSceneManager.MarkSceneDirty(scene);
+                Debug.Log(
+                    "[QuestOfferUiBuilder] npc_001 오브젝트에서 QuestGiverInteractable 을 제거하고 NpcInteractable(Talk) 을 복구했습니다.");
+            }
+
+            var templateNpc = FindNpcInteractableBySerializedId(QuestGiverSpawnTemplateNpcId);
+            if (templateNpc == null)
+            {
+                Debug.LogWarning(
+                    "[QuestOfferUiBuilder] Wire: npc_001 복구 후에도 NpcInteractable 을 찾지 못했습니다.");
+                return;
+            }
+
+            var srcGo = templateNpc.gameObject;
+            var dup = Object.Instantiate(srcGo);
+            Undo.RegisterCreatedObjectUndo(dup, "Create Quest Giver npc_010");
+            dup.name = "NPC_QuestGiver_010";
+            dup.transform.SetParent(srcGo.transform.parent, true);
+            dup.transform.position = srcGo.transform.position + new Vector3(1.75f, 0f, 0.2f);
+            dup.transform.rotation = srcGo.transform.rotation;
+            dup.transform.localScale = srcGo.transform.localScale;
+
+            var dupNpc = dup.GetComponent<NpcInteractable>();
+            if (dupNpc != null)
+                Undo.DestroyObjectImmediate(dupNpc);
+
+            var newGiver = Undo.AddComponent<QuestGiverInteractable>(dup);
+            ApplyQuestGiverSerialized(newGiver, offer);
+
+            EditorUtility.SetDirty(dup);
+            EditorSceneManager.MarkSceneDirty(scene);
+            DisableQuestDebugAcceptShortcuts();
+            Selection.activeGameObject = dup;
+            Debug.Log(
+                "[QuestOfferUiBuilder] npc_001 옆에 npc_010 QuestGiver 를 복제 생성했습니다. 의뢰는 이 NPC, 퀘스트 001 대화는 npc_001 을 사용하세요.");
+        }
+
+        private static NpcInteractable FindNpcInteractableBySerializedId(string npcId)
+        {
+            foreach (var npc in Object.FindObjectsByType<NpcInteractable>(FindObjectsInactive.Include,
+                         FindObjectsSortMode.None))
+            {
+                if (npc == null)
+                    continue;
+                var so = new SerializedObject(npc);
+                var idProp = so.FindProperty("id");
+                var raw = idProp != null ? idProp.stringValue : "";
+                if (string.Equals(raw, npcId, System.StringComparison.Ordinal))
+                    return npc;
+            }
+
+            return null;
+        }
+
+        private static GameObject FindGameObjectWithSerializedInteractableId(string rawId)
+        {
+            foreach (var b in Object.FindObjectsByType<InteractableBase>(FindObjectsInactive.Include,
+                         FindObjectsSortMode.None))
+            {
+                if (b == null)
+                    continue;
+                var so = new SerializedObject(b);
+                var idProp = so.FindProperty("id");
+                var raw = idProp != null ? idProp.stringValue : "";
+                if (string.Equals(raw, rawId, System.StringComparison.Ordinal))
+                    return b.gameObject;
+            }
+
+            return null;
+        }
+
+        /// <summary>quest_001 Talk 대상 npc_001 은 NpcInteractable 만 두고, 잘못 붙은 QuestGiver 는 모두 제거합니다.</summary>
+        private static void RestoreTalkNpcOnGuideObject(GameObject go)
+        {
+            if (go == null)
+                return;
+
+            foreach (var qg in go.GetComponents<QuestGiverInteractable>())
+            {
+                if (qg != null)
+                    Undo.DestroyObjectImmediate(qg);
+            }
+
+            var npc = go.GetComponent<NpcInteractable>();
+            if (npc == null)
+                npc = Undo.AddComponent<NpcInteractable>(go);
+
+            var soNpc = new SerializedObject(npc);
+            var idProp = soNpc.FindProperty("id");
+            if (idProp != null)
+                idProp.stringValue = QuestGiverSpawnTemplateNpcId;
+            var dn = soNpc.FindProperty("displayName");
+            if (dn != null)
+                dn.stringValue = "\uC548\uB0B4 \uC694\uC6D0";
+            var aid = soNpc.FindProperty("actionId");
+            if (aid != null)
+                aid.stringValue = "talk_npc";
+            soNpc.ApplyModifiedProperties();
+        }
+
+        private static void ApplyQuestGiverSerialized(QuestGiverInteractable giver, QuestOfferView offer)
+        {
+            var so = new SerializedObject(giver);
+            so.FindProperty("offerView").objectReferenceValue = offer;
+            var arr = so.FindProperty("offeredQuestIds");
+            arr.ClearArray();
+            arr.arraySize = DemoScopedOfferQuestIds.Length;
+            for (var i = 0; i < DemoScopedOfferQuestIds.Length; i++)
+                arr.GetArrayElementAtIndex(i).stringValue = DemoScopedOfferQuestIds[i];
+            so.ApplyModifiedProperties();
+
+            var soBase = new SerializedObject(giver);
+            var idProp = soBase.FindProperty("id");
+            if (idProp != null)
+                idProp.stringValue = QuestGiverNpcId;
+            var dn = soBase.FindProperty("displayName");
+            if (dn != null)
+                dn.stringValue = "\uC758\uB8B0 \uC9C0\uC815";
+            soBase.ApplyModifiedProperties();
+        }
+
+        private static void DisableQuestDebugAcceptShortcuts()
+        {
+            foreach (var dbg in Object.FindObjectsByType<QuestDebugAccepter>(FindObjectsInactive.Include,
+                         FindObjectsSortMode.None))
+            {
+                if (dbg == null)
+                    continue;
+                var soDbg = new SerializedObject(dbg);
+                var p = soDbg.FindProperty("acceptShortcutKeys");
+                if (p != null)
+                    p.boolValue = false;
+                soDbg.ApplyModifiedProperties();
+                EditorUtility.SetDirty(dbg);
+            }
+        }
+
+        private static QuestOfferRowView BuildOfferRowTemplate(Transform parent)
+        {
+            var rowGo = new GameObject("OfferRowTemplate", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+            Undo.RegisterCreatedObjectUndo(rowGo, "Offer Row Template");
+            rowGo.transform.SetParent(parent, false);
+
+            var rowRt = rowGo.GetComponent<RectTransform>();
+            rowRt.anchorMin = new Vector2(0f, 1f);
+            rowRt.anchorMax = new Vector2(1f, 1f);
+            rowRt.pivot = new Vector2(0.5f, 1f);
+            rowRt.sizeDelta = Vector2.zero;
+
+            var bg = rowGo.GetComponent<Image>();
+            bg.color = new Color(1f, 1f, 1f, 0.08f);
+            bg.raycastTarget = true;
+
+            var btn = rowGo.GetComponent<Button>();
+            btn.targetGraphic = bg;
+            btn.transition = Selectable.Transition.ColorTint;
+
+            rowGo.GetComponent<LayoutElement>().minHeight = 52f;
+
+            var hlg = rowGo.AddComponent<HorizontalLayoutGroup>();
+            hlg.padding = new RectOffset(12, 12, 8, 8);
+            hlg.spacing = 12;
+            hlg.childAlignment = TextAnchor.MiddleLeft;
+            hlg.childControlHeight = true;
+            hlg.childControlWidth = true;
+            hlg.childForceExpandWidth = false;
+            hlg.childForceExpandHeight = false;
+
+            var titleGo = new GameObject("Title", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
+            Undo.RegisterCreatedObjectUndo(titleGo, "Offer Row Title");
+            titleGo.transform.SetParent(rowGo.transform, false);
+            var titleTmp = titleGo.GetComponent<TextMeshProUGUI>();
+            titleTmp.text = "";
+            titleTmp.fontSize = 22;
+            titleTmp.fontStyle = FontStyles.Bold;
+            titleTmp.color = new Color(1f, 0.92f, 0.6f, 1f);
+            titleTmp.alignment = TextAlignmentOptions.Left;
+            titleTmp.raycastTarget = false;
+            var titleLe = titleGo.GetComponent<LayoutElement>();
+            titleLe.flexibleWidth = 1f;
+            titleLe.preferredHeight = 32f;
+
+            var statusGo = new GameObject("Status", typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
+            Undo.RegisterCreatedObjectUndo(statusGo, "Offer Row Status");
+            statusGo.transform.SetParent(rowGo.transform, false);
+            var statusTmp = statusGo.GetComponent<TextMeshProUGUI>();
+            statusTmp.text = "";
+            statusTmp.fontSize = 18;
+            statusTmp.color = new Color(1f, 1f, 1f, 0.75f);
+            statusTmp.alignment = TextAlignmentOptions.Right;
+            statusTmp.raycastTarget = false;
+            var statusLe = statusGo.GetComponent<LayoutElement>();
+            statusLe.preferredWidth = 120f;
+            statusLe.minWidth = 100f;
+
+            var rowView = rowGo.AddComponent<QuestOfferRowView>();
+            OfferSetPrivateField(rowView, "titleText", titleTmp);
+            OfferSetPrivateField(rowView, "statusText", statusTmp);
+            OfferSetPrivateField(rowView, "button", btn);
+            OfferSetPrivateField(rowView, "background", bg);
+
+            rowGo.SetActive(false);
+            return rowView;
+        }
+
+        private static Button BuildOfferTextButton(Transform parent, string name, string label)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+            Undo.RegisterCreatedObjectUndo(go, "Offer Btn " + name);
+            go.transform.SetParent(parent, false);
+
+            var img = go.GetComponent<Image>();
+            img.color = new Color(0.25f, 0.32f, 0.42f, 0.92f);
+
+            var le = go.GetComponent<LayoutElement>();
+            le.preferredHeight = 44f;
+            le.preferredWidth = 132f;
+
+            var btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;
+            btn.transition = Selectable.Transition.ColorTint;
+
+            var labelGo = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
+            Undo.RegisterCreatedObjectUndo(labelGo, "Offer Btn Label");
+            labelGo.transform.SetParent(go.transform, false);
+            var labelRt = labelGo.GetComponent<RectTransform>();
+            labelRt.anchorMin = Vector2.zero;
+            labelRt.anchorMax = Vector2.one;
+            labelRt.offsetMin = new Vector2(8f, 4f);
+            labelRt.offsetMax = new Vector2(-8f, -4f);
+            var tmp = labelGo.GetComponent<TextMeshProUGUI>();
+            tmp.text = label;
+            tmp.fontSize = 20;
+            tmp.color = Color.white;
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.raycastTarget = false;
+
+            return btn;
+        }
+
+        private static void OfferStretchFull(RectTransform rt)
+        {
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+        }
+
+        private static void OfferStretchTopFullWidth(RectTransform rt)
+        {
+            rt.anchorMin = new Vector2(0f, 1f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(0.5f, 1f);
+            rt.anchoredPosition = Vector2.zero;
+        }
+
+        private static void OfferSetPrivateField(object target, string fieldName, object value)
+        {
+            var t = target.GetType();
+            var f = t.GetField(fieldName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            if (f == null)
+            {
+                Debug.LogWarning($"[QuestOfferUiBuilder] Field missing: {t.Name}.{fieldName}");
+                return;
+            }
+
+            f.SetValue(target, value);
+            if (target is Object uo)
+                EditorUtility.SetDirty(uo);
         }
     }
 }

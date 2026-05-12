@@ -1,11 +1,35 @@
 {
   "id": "quest_001",
-  "title": "첫 임무",
-  "reward": { "coins": 1 },
+  "title": "입문 절차",
+  "reward": { "coins": 15 },
   "steps": [
-    { "actionId": "talk_npc", "objective": "NPC에게 3번 말 걸기", "requiredCount": 3 },
-    { "actionId": "pickup_item", "objective": "아이템 줍기" },
-    { "actionId": "submit_terminal", "objective": "터미널에 제출하기" }
+    {
+      "objectives": [
+        {
+          "type": "Talk",
+          "targetId": "npc_001",
+          "requiredCount": 3,
+          "uiText": "안내 요원에게 3번 확인받기"
+        }
+      ]
+    },
+    {
+      "objectives": [
+        {
+          "type": "Pickup",
+          "targetId": "item_001",
+          "uiText": "훈련용 샘플 챙기기"
+        }
+      ]
+    },
+    {
+      "objectives": [
+        {
+          "type": "Submit",
+          "targetId": "terminal_001",
+          "uiText": "앞쪽 터미널에 보고하기"
+        }
+      ]
+    }
   ]
 }
-

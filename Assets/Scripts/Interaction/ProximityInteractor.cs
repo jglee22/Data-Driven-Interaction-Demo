@@ -10,7 +10,12 @@ namespace DataDrivenDemo.Interaction
         [Header("UI")]
         [SerializeField] private InteractionPromptView promptView;
 
+        [Header("Input")]
+        [SerializeField] private bool useInteractKey = true;
+        [SerializeField] private KeyCode interactKey = KeyCode.E;
+
         [Header("Quest Filter (optional)")]
+        [Tooltip("켜두면 프롬프트는 '이미 수락한 퀘스트의 현재 단계 목표'와 맞는 오브젝트에만 뜹니다. 초반에 퀘스트를 아직 안 받았다면 일반 NPC 에는 아무 반응이 없습니다. QuestGiverInteractable(의뢰 NPC)는 예외로 항상 뜹니다.")]
         [SerializeField] private bool onlyShowForAcceptedQuestTargets = true;
         [SerializeField] private QuestSystem questSystem;
 
@@ -39,11 +44,18 @@ namespace DataDrivenDemo.Interaction
                 return;
             }
 
-            if (onlyShowForAcceptedQuestTargets && !IsRelevant(current))
+            if (onlyShowForAcceptedQuestTargets && current != null && !AlwaysShowInteractable(current) &&
+                !IsRelevant(current))
             {
                 current = null;
                 promptView?.Hide();
             }
+
+            if (current == null)
+                return;
+
+            if (useInteractKey && Input.GetKeyDown(interactKey))
+                Interact();
         }
 
         private void Awake()
@@ -70,7 +82,8 @@ namespace DataDrivenDemo.Interaction
             if (!interactable.CanInteract(gameObject))
                 return;
 
-            if (onlyShowForAcceptedQuestTargets && !IsRelevant(interactable))
+            if (onlyShowForAcceptedQuestTargets && !AlwaysShowInteractable(interactable) &&
+                !IsRelevant(interactable))
                 return;
 
             current = interactable;
@@ -118,11 +131,19 @@ namespace DataDrivenDemo.Interaction
                 return;
             }
 
-            if (onlyShowForAcceptedQuestTargets && current != null && !IsRelevant(current))
+            if (onlyShowForAcceptedQuestTargets && current != null && !AlwaysShowInteractable(current) &&
+                !IsRelevant(current))
             {
                 current = null;
                 promptView?.Hide();
             }
+        }
+
+        private static bool AlwaysShowInteractable(IInteractable interactable)
+        {
+            return interactable is Component c &&
+                   c != null &&
+                   c.GetComponentInParent<QuestGiverInteractable>() != null;
         }
 
         private void ResolvePromptView()

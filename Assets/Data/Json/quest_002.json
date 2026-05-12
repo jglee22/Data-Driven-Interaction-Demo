@@ -1,21 +1,21 @@
 {
   "id": "quest_002",
-  "title": "테스트 퀘스트 002",
-  "reward": { "coins": 1 },
+  "title": "데이터 검증",
+  "reward": { "coins": 25 },
   "steps": [
     {
       "objectives": [
-        { "type": "Talk", "targetId": "npc_002", "requiredCount": 2, "uiText": "NPC에게 2번 말 걸기" }
+        { "type": "Talk", "targetId": "npc_002", "requiredCount": 1, "uiText": "검수 담당자에게 말 걸기" }
       ]
     },
     {
       "objectives": [
-        { "type": "Pickup", "targetId": "item_002", "uiText": "아이템 줍기" }
+        { "type": "Pickup", "targetId": "item_002", "uiText": "로그 파일(USB) 가져오기" }
       ]
     },
     {
       "objectives": [
-        { "type": "Submit", "targetId": "terminal_002", "uiText": "터미널에 제출하기" }
+        { "type": "Submit", "targetId": "terminal_002", "uiText": "서버에 업로드하기" }
       ]
     }
   ]

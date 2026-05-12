@@ -2,6 +2,12 @@ using UnityEngine;
 
 namespace DataDrivenDemo.Player
 {
+    public enum QuarterViewMovementLockSource
+    {
+        Menu = 1,
+        QuestOffer = 2,
+    }
+
     [DisallowMultipleComponent]
     [RequireComponent(typeof(CharacterController))]
     public sealed class QuarterViewPlayerController : MonoBehaviour
@@ -23,6 +29,7 @@ namespace DataDrivenDemo.Player
 
         private CharacterController controller;
         private Vector3 verticalVelocity;
+        private int movementLockMask;
 
         // touch state
         private int moveFingerId = -1;
@@ -50,9 +57,28 @@ namespace DataDrivenDemo.Player
             touchStart = Vector2.zero;
         }
 
+        /// <summary>
+        /// UI 메뉴·의뢰 패널 등에서 호출합니다. 컴포넌트를 비활성화하지 않고 이동/점프만 막아 중력은 유지합니다.
+        /// </summary>
+        public void SetMovementLock(QuarterViewMovementLockSource source, bool locked)
+        {
+            var bit = (int)source;
+            if (locked)
+            {
+                movementLockMask |= bit;
+                ResetInputState();
+            }
+            else
+            {
+                movementLockMask &= ~bit;
+            }
+        }
+
+        private bool IsMovementExternallyLocked => movementLockMask != 0;
+
         private void Update()
         {
-            var input = ReadMoveInput();
+            var input = IsMovementExternallyLocked ? Vector2.zero : ReadMoveInput();
             var move = ComputeCameraRelativeMove(input);
 
             if (move.sqrMagnitude > 0.0001f)
@@ -65,7 +91,7 @@ namespace DataDrivenDemo.Player
             if (controller.isGrounded && verticalVelocity.y < 0f)
                 verticalVelocity.y = -1f;
 
-            if (enableJump && controller.isGrounded && Input.GetKeyDown(KeyCode.Space))
+            if (enableJump && !IsMovementExternallyLocked && controller.isGrounded && Input.GetKeyDown(KeyCode.Space))
             {
                 // v = sqrt(2 * h * -g)
                 var g = Mathf.Abs(gravity);
