@@ -9,6 +9,13 @@ namespace DataDrivenDemo.Quest
         [SerializeField] private Transform anchor;
         [SerializeField] private float heightOffset = 2.2f;
 
+        private SpriteRenderer spriteRenderer;
+
+        private void Awake()
+        {
+            spriteRenderer = GetComponent<SpriteRenderer>();
+        }
+
         public void Initialize(Transform anchorTransform, float yOffset)
         {
             anchor = anchorTransform;
@@ -52,7 +59,20 @@ namespace DataDrivenDemo.Quest
                     flat = Vector3.forward;
             }
 
-            transform.rotation = Quaternion.LookRotation(flat.normalized, Vector3.up);
+            flat.Normalize();
+            transform.rotation = Quaternion.LookRotation(flat, Vector3.up);
+
+            // LookRotation 만으로는 카메라 각도에 따라 transform.right 부호가 뒤집혀
+            // 비대칭 스프라이트(물음표 등)가 좌우 반전되어 보일 수 있음 → 카메라 화면 기준으로 보정
+            if (spriteRenderer != null)
+            {
+                var camRight = cam.transform.right;
+                camRight.y = 0f;
+                var markerRight = transform.right;
+                markerRight.y = 0f;
+                if (camRight.sqrMagnitude > 1e-6f && markerRight.sqrMagnitude > 1e-6f)
+                    spriteRenderer.flipX = Vector3.Dot(markerRight.normalized, camRight.normalized) < 0f;
+            }
         }
     }
 }

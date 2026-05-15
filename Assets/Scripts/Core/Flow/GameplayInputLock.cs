@@ -10,9 +10,6 @@ namespace DataDrivenDemo.Core.Flow
     {
         [Header("References (optional)")]
         [SerializeField] private UIRoot uiRoot;
-        [SerializeField] private QuarterViewPlayerController playerController;
-        [SerializeField] private ProximityInteractor proximityInteractor;
-        [SerializeField] private Rigidbody playerRigidbody;
 
         [Header("Behavior")]
         [SerializeField] private bool pauseTimeScale = false;
@@ -28,14 +25,7 @@ namespace DataDrivenDemo.Core.Flow
             if (uiRoot == null)
                 uiRoot = FindFirstObjectByType<UIRoot>();
 
-            if (playerController == null)
-                playerController = FindFirstObjectByType<QuarterViewPlayerController>();
-
-            if (proximityInteractor == null)
-                proximityInteractor = FindFirstObjectByType<ProximityInteractor>();
-
-            if (playerRigidbody == null && playerController != null)
-                playerRigidbody = playerController.GetComponent<Rigidbody>();
+            PlayerLocator.Refresh();
         }
 
         private void OnEnable()
@@ -59,6 +49,10 @@ namespace DataDrivenDemo.Core.Flow
         private void HandleStateChanged(UIState state)
         {
             var menuOpen = state == UIState.Menu;
+
+            var playerController = PlayerLocator.Controller;
+            var proximityInteractor = PlayerLocator.Interactor;
+            var playerRigidbody = PlayerLocator.Rigidbody;
 
             if (playerController != null)
                 playerController.SetMovementLock(QuarterViewMovementLockSource.Menu, menuOpen);
@@ -107,4 +101,3 @@ namespace DataDrivenDemo.Core.Flow
         }
     }
 }
-

@@ -12,7 +12,9 @@
    - `npc_010`이 없으면 `npc_001` 옆에 **`NPC_QuestGiver_010`**이 생성되고, **`npc_001`은 Talk용 `NpcInteractable`로 유지**됩니다.
 4. (선택) **`QuestObjectiveWorldMarkerManager`** 오브젝트 추가 후 스프라이트 지정  
    - 의뢰 NPC만 아이콘을 쓰려면 **`Quest Giver Only`**에 해당 `QuestGiverInteractable` 하나만 넣습니다.
-5. 플레이어에 **`ProximityInteractor`** + 트리거, **`QuarterViewPlayerController`** 등 기존 데모 구성 유지.
+5. 플레이어 루트에 **`QuarterViewPlayerController`** + **`ProximityInteractor`** + 트리거 콜라이더.  
+   - Tag **`Player`** 권장(없어도 `QuarterViewPlayerController` 로 찾음).  
+   - 카메라·UI·의뢰 패널은 **`PlayerLocator`** 가 시작 시 플레이어를 자동 연결 — 인스펙터에 플레이어를 끌어다 넣을 필요 없음.
 
 ---
 
@@ -51,8 +53,8 @@
 
 ## 월드 마커 (`QuestObjectiveWorldMarkerManager`)
 
-- **진행 목표**: 현재 단계 `targetId`와 같은 `Interactable` 위에 **`Quest Objective Sprite`** (예: `bonus_01`).
-- **의뢰 NPC**: `QuestGiverInteractable` 위에 **`Quest Giver Sprite`** (예: `bonus_02`).
+- **진행 목표**: **수락한 퀘스트가 있을 때만** 현재 단계 `targetId`와 같은 `Interactable` 위에 **`Quest Objective Sprite`** (예: `bonus_01`).
+- **의뢰 NPC**: `QuestGiverInteractable` 위에 **`Quest Giver Sprite`** (예: `bonus_02`). 진행 마커와 같은 위치여도 **의뢰 아이콘이 위에 그려지도록** 정렬 순서를 더 높게 둡니다.
 - **`Quest Giver Only`**: 비어 있으면 씬의 **모든** `QuestGiverInteractable`에 의뢰 아이콘이 붙습니다. **한 명만** 쓰려면 배열에 그 컴포넌트만 넣습니다.
 - **`QuestSystem`**이 UI 갱신 시 씬의 매니저들에게 자동으로 `RefreshFrom`을 호출합니다 (매니저를 `QuestSystem`에 직접 연결하지 않아도 됨).
 

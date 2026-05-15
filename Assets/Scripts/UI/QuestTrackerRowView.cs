@@ -32,6 +32,29 @@ namespace DataDrivenDemo.UI
         public string LastTitle => lastTitle;
         public string LastDetail => lastDetail;
 
+        /// <summary>HUD 트래커 폭 맞춤용: 제목/상세 텍스트 기준 선호 가로 길이(행 패딩 포함).</summary>
+        public float MeasurePreferredWidth()
+        {
+            const float padX = 24f;
+            var w = padX;
+
+            if (titleText != null)
+            {
+                titleText.ForceMeshUpdate();
+                var v = titleText.GetPreferredValues(titleText.text, float.PositiveInfinity, float.PositiveInfinity);
+                w = Mathf.Max(w, padX + v.x);
+            }
+
+            if (detailText != null)
+            {
+                detailText.ForceMeshUpdate();
+                var v = detailText.GetPreferredValues(detailText.text, float.PositiveInfinity, float.PositiveInfinity);
+                w = Mathf.Max(w, padX + v.x);
+            }
+
+            return w;
+        }
+
         private void Awake() => CacheNormalRowColorIfNeeded();
 
         public void Set(string title, string detail, QuestTrackerStatus status, string questKey = null)

@@ -248,7 +248,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 
+  m_text: "\u200B"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: cb588631d66646e4198c1e59f75437a3, type: 2}
   m_sharedMaterial: {fileID: -8649913080227387338, guid: cb588631d66646e4198c1e59f75437a3, type: 2}
@@ -1000,7 +1000,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Sign In
+  m_text: "\uB85C\uADF8\uC778"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: cb588631d66646e4198c1e59f75437a3, type: 2}
   m_sharedMaterial: {fileID: -8649913080227387338, guid: cb588631d66646e4198c1e59f75437a3, type: 2}
@@ -1212,7 +1212,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Sign Up
+  m_text: "\uD68C\uC6D0\uAC00\uC785"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: cb588631d66646e4198c1e59f75437a3, type: 2}
   m_sharedMaterial: {fileID: -8649913080227387338, guid: cb588631d66646e4198c1e59f75437a3, type: 2}
@@ -1349,7 +1349,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Send Verification
+  m_text: "\uC778\uC99D\uBC88\uD638 \uC804\uC1A1"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: cb588631d66646e4198c1e59f75437a3, type: 2}
   m_sharedMaterial: {fileID: -8649913080227387338, guid: cb588631d66646e4198c1e59f75437a3, type: 2}
@@ -2095,7 +2095,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Email Auth
+  m_text: "\uB85C\uADF8\uC778"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: cb588631d66646e4198c1e59f75437a3, type: 2}
   m_sharedMaterial: {fileID: -8649913080227387338, guid: cb588631d66646e4198c1e59f75437a3, type: 2}
@@ -2929,7 +2929,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Password (>= 6)
+  m_text: Password
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: cb588631d66646e4198c1e59f75437a3, type: 2}
   m_sharedMaterial: {fileID: -8649913080227387338, guid: cb588631d66646e4198c1e59f75437a3, type: 2}
@@ -3410,7 +3410,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Sign Out
+  m_text: "\uB85C\uADF8\uC544\uC6C3"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: cb588631d66646e4198c1e59f75437a3, type: 2}
   m_sharedMaterial: {fileID: -8649913080227387338, guid: cb588631d66646e4198c1e59f75437a3, type: 2}
@@ -3537,6 +3537,8 @@ MonoBehaviour:
   emailInput: {fileID: 904854646}
   passwordInput: {fileID: 642922440}
   statusText: {fileID: 228489512}
+  rememberToggle: {fileID: 0}
+  autoSignInToggle: {fileID: 0}
   demoSceneName: DemoScene
   sendVerificationAfterSignUp: 1
   autoContinueOnVerifiedSignIn: 1
@@ -3580,7 +3582,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 
+  m_text: "\u200B"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: cb588631d66646e4198c1e59f75437a3, type: 2}
   m_sharedMaterial: {fileID: -8649913080227387338, guid: cb588631d66646e4198c1e59f75437a3, type: 2}
@@ -4022,8 +4024,8 @@ Camera:
   m_GameObject: {fileID: 1955911637}
   m_Enabled: 1
   serializedVersion: 2
-  m_ClearFlags: 1
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_ClearFlags: 2
+  m_BackGroundColor: {r: 0.084905684, g: 0.084905684, b: 0.084905684, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -4074,53 +4076,6 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 1, z: -10}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &2043452972
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2043452974}
-  - component: {fileID: 2043452973}
-  m_Layer: 0
-  m_Name: StartSceneLoader
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!114 &2043452973
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2043452972}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 86f2e5d5162847e4b99eb70b6d9a21f8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::DataDrivenDemo.Core.Flow.StartSceneLoader
-  demoSceneName: DemoScene
-  loadAdditive: 0
-  forceMenuOpenAfterLoad: 1
---- !u!4 &2043452974
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2043452972}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4268,7 +4223,6 @@ SceneRoots:
   - {fileID: 1196380265}
   - {fileID: 2046608852}
   - {fileID: 1350945987}
-  - {fileID: 2043452974}
   - {fileID: 1117430031}
   - {fileID: 2051209995}
   - {fileID: 299202026}

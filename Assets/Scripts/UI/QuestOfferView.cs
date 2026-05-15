@@ -24,8 +24,6 @@ namespace DataDrivenDemo.UI
         [SerializeField] private QuestSystem questSystem;
         [SerializeField] private QuestCatalog catalog;
         [SerializeField] private QuestHudView hud;
-        [SerializeField] private QuarterViewPlayerController playerController;
-        [SerializeField] private ProximityInteractor proximityInteractor;
 
         [SerializeField] private bool closeOnEscape = true;
 
@@ -375,20 +373,19 @@ namespace DataDrivenDemo.UI
 
         private void SetGameplayLocked(bool locked)
         {
+            QuarterViewPlayerController playerController = null;
+            ProximityInteractor proximityInteractor = null;
+
             if (lastInteractorRoot != null)
             {
-                var pc = lastInteractorRoot.GetComponentInParent<QuarterViewPlayerController>();
-                var px = lastInteractorRoot.GetComponentInParent<ProximityInteractor>();
-                if (pc != null)
-                    playerController = pc;
-                if (px != null)
-                    proximityInteractor = px;
+                playerController = lastInteractorRoot.GetComponentInParent<QuarterViewPlayerController>();
+                proximityInteractor = lastInteractorRoot.GetComponentInParent<ProximityInteractor>();
             }
 
             if (playerController == null)
-                playerController = FindFirstObjectByType<QuarterViewPlayerController>(FindObjectsInactive.Include);
+                playerController = PlayerLocator.Controller;
             if (proximityInteractor == null)
-                proximityInteractor = FindFirstObjectByType<ProximityInteractor>(FindObjectsInactive.Include);
+                proximityInteractor = PlayerLocator.Interactor;
 
             if (playerController != null)
                 playerController.SetMovementLock(QuarterViewMovementLockSource.QuestOffer, locked);
@@ -410,10 +407,8 @@ namespace DataDrivenDemo.UI
                 catalog = FindFirstObjectByType<QuestCatalog>(FindObjectsInactive.Include);
             if (hud == null)
                 hud = FindFirstObjectByType<QuestHudView>(FindObjectsInactive.Include);
-            if (playerController == null)
-                playerController = FindFirstObjectByType<QuarterViewPlayerController>(FindObjectsInactive.Include);
-            if (proximityInteractor == null)
-                proximityInteractor = FindFirstObjectByType<ProximityInteractor>(FindObjectsInactive.Include);
+
+            PlayerLocator.Refresh();
         }
 
         private QuestSystem ResolveQuestSystem()

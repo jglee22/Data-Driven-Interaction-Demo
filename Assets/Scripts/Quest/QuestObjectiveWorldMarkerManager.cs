@@ -6,7 +6,7 @@ namespace DataDrivenDemo.Quest
 {
     /// <summary>
     /// 의뢰 NPC 위에는 questGiverSprite(bonus_02 등), 진행 중 목표 오브젝트 위에는 objectiveSprite(bonus_01 등)를 표시합니다.
-    /// 의뢰 아이콘: questGiverOnly 배열이 비어 있으면 씬의 모든 QuestGiverInteractable 에 붙습니다(여러 개면 전부).
+    /// 의뢰 아이콘: 수락 가능한 의뢰가 있을 때만 표시합니다. questGiverOnly 가 비어 있으면 씬의 모든 QuestGiverInteractable 을 검사합니다.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class QuestObjectiveWorldMarkerManager : MonoBehaviour
@@ -15,7 +15,7 @@ namespace DataDrivenDemo.Quest
         [SerializeField] private QuestSystem questSystem;
 
         [Header("Quest giver (의뢰 아이콘)")]
-        [Tooltip("비어 있으면: 씬에 있는 모든 QuestGiverInteractable 에 bonus_02 가 붙습니다.\n" +
+        [Tooltip("비어 있으면: 씬의 모든 QuestGiverInteractable 을 대상으로, 수락 가능한 의뢰가 있을 때만 ! 마커를 띄웁니다.\n" +
                  "1명만 의뢰 NPC 라면: 그 오브젝트의 QuestGiverInteractable 만 배열에 넣으세요.")]
         [SerializeField] private QuestGiverInteractable[] questGiverOnly;
 
@@ -36,38 +36,46 @@ namespace DataDrivenDemo.Quest
                 questSystem = FindFirstObjectByType<QuestSystem>(FindObjectsInactive.Include);
         }
 
+        private void OnEnable()
+        {
+            if (questSystem == null)
+                questSystem = FindFirstObjectByType<QuestSystem>(FindObjectsInactive.Include);
+            // QuestSystem.RenderUi 는 수락/리셋 등 이벤트 때만 호출됩니다. 매니저가 나중에 활성화되면 여기서 한 번 맞춥니다.
+            RefreshFrom(questSystem);
+        }
+
         public void RefreshFrom(QuestSystem sys)
         {
-            ClearSpawned();
-
             if (!isActiveAndEnabled)
                 return;
 
+            ClearSpawned();
+
             if (sys == null)
                 sys = questSystem;
-            if (sys == null)
-                return;
 
             var objectiveAnchors = new HashSet<Transform>();
-            sys.GetWorldMarkerObjectiveAnchors(objectiveAnchors);
+            if (sys != null)
+                sys.GetWorldMarkerObjectiveAnchors(objectiveAnchors);
 
+            // 진행 마커(?) — 수락된 퀘스트의 현재 목표만
             foreach (var t in objectiveAnchors)
             {
                 if (t == null || questObjectiveSprite == null)
                     continue;
-                SpawnOne(t, questObjectiveSprite);
+                SpawnOne(t, questObjectiveSprite, sortingOrder);
             }
 
+            // 의뢰 마크(!) — 아직 수락할 수 있는 의뢰가 있을 때만
             if (questGiverOnly != null && questGiverOnly.Length > 0)
             {
                 foreach (var giver in questGiverOnly)
                 {
                     if (giver == null || questGiverSprite == null)
                         continue;
-                    var tr = giver.transform;
-                    if (objectiveAnchors.Contains(tr))
+                    if (sys != null && !sys.GiverHasAnyAcceptableOffer(giver))
                         continue;
-                    SpawnOne(tr, questGiverSprite);
+                    SpawnOne(giver.transform, questGiverSprite, sortingOrder + 50);
                 }
             }
             else
@@ -77,10 +85,9 @@ namespace DataDrivenDemo.Quest
                 {
                     if (giver == null || questGiverSprite == null)
                         continue;
-                    var tr = giver.transform;
-                    if (objectiveAnchors.Contains(tr))
+                    if (sys != null && !sys.GiverHasAnyAcceptableOffer(giver))
                         continue;
-                    SpawnOne(tr, questGiverSprite);
+                    SpawnOne(giver.transform, questGiverSprite, sortingOrder + 50);
                 }
             }
         }
@@ -98,7 +105,7 @@ namespace DataDrivenDemo.Quest
 
         private void OnDestroy() => ClearSpawned();
 
-        private void SpawnOne(Transform anchor, Sprite sprite)
+        private void SpawnOne(Transform anchor, Sprite sprite, int sortingOrderOverride)
         {
             var go = new GameObject($"QuestMarker_{sprite.name}");
             // 부모가 멀리 있으면 첫 프레임 위치가 꼬일 수 있어 씬 루트에 둡니다.
@@ -107,7 +114,7 @@ namespace DataDrivenDemo.Quest
             var sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = sprite;
             sr.color = Color.white;
-            sr.sortingOrder = sortingOrder;
+            sr.sortingOrder = sortingOrderOverride;
 
             var scale = Mathf.Max(0.25f, iconWorldScale);
             go.transform.localScale = Vector3.one * scale;

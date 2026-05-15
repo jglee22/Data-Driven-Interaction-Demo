@@ -63,6 +63,12 @@ namespace DataDrivenDemo.Quest
             QuestEvents.EventRaised -= OnEventRaised;
         }
 
+        private void Start()
+        {
+            // Awake 순서 때문에 월드 마커 매니저가 첫 RenderUi 시점에 비활성이었을 수 있어, 한 프레임 뒤 다시 맞춥니다.
+            RenderUi();
+        }
+
         public bool Accept(string questId)
         {
             var def = catalog != null ? catalog.Get(questId) : null;
@@ -112,6 +118,37 @@ namespace DataDrivenDemo.Quest
             if (catalog == null || catalog.Get(questId) == null)
                 return false;
             return !IsAccepted(questId);
+        }
+
+        /// <summary>월드 마커(!): 이 기버가 걸어 둔 의뢰 중 아직 수락할 수 있는 것이 있는지.</summary>
+        public bool GiverHasAnyAcceptableOffer(QuestGiverInteractable giver)
+        {
+            if (giver == null || catalog == null)
+                return false;
+
+            var ids = giver.OfferedQuestIds;
+            if (ids.Length == 0)
+            {
+                foreach (var def in catalog.All())
+                {
+                    if (def == null || string.IsNullOrWhiteSpace(def.id))
+                        continue;
+                    if (CanAcceptOffer(def.id))
+                        return true;
+                }
+
+                return false;
+            }
+
+            foreach (var id in ids)
+            {
+                if (string.IsNullOrWhiteSpace(id))
+                    continue;
+                if (CanAcceptOffer(id))
+                    return true;
+            }
+
+            return false;
         }
 
         /// <summary>미수락이면 카탈로그 기준, 수락 후에는 저널과 동일한 요약을 만듭니다.</summary>
@@ -550,20 +587,42 @@ namespace DataDrivenDemo.Quest
             return $"{text} ({Mathf.Clamp(st.stepCount, 0, required)}/{required})";
         }
 
+        /// <summary>
+        /// 월드 마커용: targetId와 Id가 같은 상호작용 오브젝트를 찾습니다.
+        /// 의뢰 NPC(<see cref="QuestGiverInteractable"/>)는 Id가 목표와 같아도 진행 목표 앵커로는 쓰지 않고,
+        /// Npc/Item/Terminal 등이 없을 때만 폴백합니다(같은 Id가 여러 컴포넌트에 있을 때 진행 마커가 사라지는 문제 방지).
+        /// </summary>
         private static bool TryFindInteractableByTargetId(string targetId, out InteractableBase found)
         {
             found = null;
             if (string.IsNullOrWhiteSpace(targetId))
                 return false;
 
+            var key = targetId.Trim();
+            InteractableBase questGiverFallback = null;
+
             foreach (var b in UnityEngine.Object.FindObjectsByType<InteractableBase>(FindObjectsInactive.Include,
                          FindObjectsSortMode.None))
             {
                 if (b == null)
                     continue;
-                if (!string.Equals(b.Id, targetId, StringComparison.Ordinal))
+                if (!string.Equals(b.Id, key, StringComparison.OrdinalIgnoreCase))
                     continue;
+
+                if (b is QuestGiverInteractable)
+                {
+                    if (questGiverFallback == null)
+                        questGiverFallback = b;
+                    continue;
+                }
+
                 found = b;
+                return true;
+            }
+
+            if (questGiverFallback != null)
+            {
+                found = questGiverFallback;
                 return true;
             }
 

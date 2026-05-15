@@ -5,9 +5,6 @@ namespace DataDrivenDemo.Player
     [DisallowMultipleComponent]
     public sealed class QuarterViewFollowCamera : MonoBehaviour
     {
-        [Header("Target")]
-        [SerializeField] private Transform target;
-
         [Header("Quarter View")]
         [SerializeField] private float distance = 8f;
         [SerializeField, Range(10f, 80f)] private float pitch = 35f;
@@ -29,6 +26,12 @@ namespace DataDrivenDemo.Player
         private float yawVelocity;
         private float pitchVelocity;
 
+        private Transform target;
+
+        private void Awake() => ResolveTarget();
+
+        private void Start() => ResolveTarget();
+
         private void Reset()
         {
             var cam = GetComponent<Camera>();
@@ -36,8 +39,20 @@ namespace DataDrivenDemo.Player
                 transform.position = Camera.main.transform.position;
         }
 
+        private void ResolveTarget()
+        {
+            if (target != null)
+                return;
+            PlayerLocator.Refresh();
+            var t = PlayerLocator.Transform;
+            if (t != null)
+                target = t;
+        }
+
         private void LateUpdate()
         {
+            if (target == null)
+                ResolveTarget();
             if (target == null)
                 return;
 
@@ -94,7 +109,12 @@ namespace DataDrivenDemo.Player
             pitch = Mathf.Clamp(pitch, 15f, 75f);
         }
 
-        public void SetTarget(Transform newTarget) => target = newTarget;
+        public void SetTarget(Transform newTarget)
+        {
+            target = newTarget;
+            if (target == null)
+                ResolveTarget();
+        }
     }
 }
 

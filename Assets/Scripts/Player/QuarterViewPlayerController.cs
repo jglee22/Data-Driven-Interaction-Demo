@@ -10,10 +10,10 @@ namespace DataDrivenDemo.Player
 
     [DisallowMultipleComponent]
     [RequireComponent(typeof(CharacterController))]
+    [RequireComponent(typeof(QuarterViewPlayerAnimation))]
     public sealed class QuarterViewPlayerController : MonoBehaviour
     {
         [Header("Movement")]
-        [SerializeField] private Transform cameraTransform;
         [SerializeField] private float moveSpeed = 4.5f;
         [SerializeField] private float rotationSpeed = 12f; // slerp speed
         [SerializeField] private float gravity = -18f;
@@ -21,6 +21,12 @@ namespace DataDrivenDemo.Player
         [Header("Jump")]
         [SerializeField] private bool enableJump = true;
         [SerializeField] private float jumpHeight = 1.2f;
+        [Tooltip("땅에서 막 떨어진 직후에도 점프 가능(달리며 점프할 때 유리).")]
+        [SerializeField] private float coyoteTime = 0.12f;
+        [Tooltip("착지 직전에 스페이스를 눌러도 다음 착지 시 점프.")]
+        [SerializeField] private float jumpBufferTime = 0.12f;
+        [Tooltip("공중에서도 WASD 이동 입력 반영 (1 = 지상과 동일).")]
+        [SerializeField, Range(0f, 1f)] private float airMoveControl = 1f;
 
         [Header("Mobile (simple)")]
         [SerializeField] private bool enableTouchMove = true;
@@ -28,8 +34,13 @@ namespace DataDrivenDemo.Player
         [SerializeField] private float touchDeadZone = 12f; // pixels
 
         private CharacterController controller;
+        private Transform cameraTransform;
         private Vector3 verticalVelocity;
+        private Vector3 lastPlanarMove;
         private int movementLockMask;
+        private bool jumpTriggered;
+        private float coyoteTimeLeft;
+        private float jumpBufferLeft;
 
         // touch state
         private int moveFingerId = -1;
@@ -40,7 +51,32 @@ namespace DataDrivenDemo.Player
         {
             controller = GetComponent<CharacterController>();
 
-            if (cameraTransform == null && Camera.main != null)
+            // Rigidbody + CharacterController 동시에 쓰면 isGrounded 가 거짓으로 떨어져 점프 애니가 반복될 수 있음
+            var rb = GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.useGravity = false;
+                if (!rb.isKinematic)
+                    rb.isKinematic = true;
+            }
+
+            PlayerLocator.Invalidate();
+            ResolveCameraTransform();
+        }
+
+        private void OnEnable() => PlayerLocator.Invalidate();
+
+        private void Start() => ResolveCameraTransform();
+
+        private void ResolveCameraTransform()
+        {
+            if (cameraTransform != null)
+                return;
+
+            var follow = Object.FindFirstObjectByType<QuarterViewFollowCamera>(FindObjectsInactive.Exclude);
+            if (follow != null)
+                cameraTransform = follow.transform;
+            else if (Camera.main != null)
                 cameraTransform = Camera.main.transform;
         }
 
@@ -76,10 +112,32 @@ namespace DataDrivenDemo.Player
 
         private bool IsMovementExternallyLocked => movementLockMask != 0;
 
+        /// <summary>애니메이션용: 수평 이동 방향(월드).</summary>
+        public Vector3 LastPlanarMove => lastPlanarMove;
+
+        /// <summary>애니메이션·점프 판정용(엄격). CharacterController.isGrounded 만 사용합니다.</summary>
+        public bool IsGroundedForAnimation => controller != null && controller.isGrounded;
+
+        public float VerticalSpeed => verticalVelocity.y;
+
+        public bool IsMovementLocked => movementLockMask != 0;
+
+        /// <summary>이 프레임에 점프가 발생했으면 true (한 번만).</summary>
+        public bool ConsumeJumpTriggered()
+        {
+            if (!jumpTriggered)
+                return false;
+            jumpTriggered = false;
+            return true;
+        }
+
         private void Update()
         {
+            UpdateJumpTimers();
+
             var input = IsMovementExternallyLocked ? Vector2.zero : ReadMoveInput();
             var move = ComputeCameraRelativeMove(input);
+            lastPlanarMove = move;
 
             if (move.sqrMagnitude > 0.0001f)
             {
@@ -87,21 +145,56 @@ namespace DataDrivenDemo.Player
                 transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, 1f - Mathf.Exp(-rotationSpeed * Time.deltaTime));
             }
 
-            // gravity
-            if (controller.isGrounded && verticalVelocity.y < 0f)
+            var grounded = controller.isGrounded;
+            if (grounded && verticalVelocity.y < 0f)
                 verticalVelocity.y = -1f;
 
-            if (enableJump && !IsMovementExternallyLocked && controller.isGrounded && Input.GetKeyDown(KeyCode.Space))
+            if (TryPerformJump())
             {
-                // v = sqrt(2 * h * -g)
                 var g = Mathf.Abs(gravity);
                 verticalVelocity.y = Mathf.Sqrt(2f * Mathf.Max(0.1f, jumpHeight) * g);
+                jumpTriggered = true;
+                coyoteTimeLeft = 0f;
+                jumpBufferLeft = 0f;
             }
 
             verticalVelocity.y += gravity * Time.deltaTime;
 
-            var velocity = (move * moveSpeed) + verticalVelocity;
+            var horizontalSpeed = grounded ? 1f : airMoveControl;
+            var velocity = (move * (moveSpeed * horizontalSpeed)) + verticalVelocity;
             controller.Move(velocity * Time.deltaTime);
+        }
+
+        private void UpdateJumpTimers()
+        {
+            if (controller.isGrounded)
+                coyoteTimeLeft = coyoteTime;
+            else
+                coyoteTimeLeft = Mathf.Max(0f, coyoteTimeLeft - Time.deltaTime);
+
+            if (ReadJumpPressed())
+                jumpBufferLeft = jumpBufferTime;
+            else
+                jumpBufferLeft = Mathf.Max(0f, jumpBufferLeft - Time.deltaTime);
+        }
+
+        private bool TryPerformJump()
+        {
+            if (!enableJump || IsMovementExternallyLocked)
+                return false;
+            if (jumpBufferLeft <= 0f)
+                return false;
+            if (coyoteTimeLeft <= 0f)
+                return false;
+            if (verticalVelocity.y > 0.15f)
+                return false;
+
+            return true;
+        }
+
+        private static bool ReadJumpPressed()
+        {
+            return Input.GetKeyDown(KeyCode.Space) || Input.GetButtonDown("Jump");
         }
 
         private Vector2 ReadMoveInput()

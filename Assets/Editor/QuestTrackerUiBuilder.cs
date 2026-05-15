@@ -28,6 +28,13 @@ namespace DataDrivenDemo.EditorTools
 
             var hudGo = hud.gameObject;
 
+            if (hudGo.GetComponentInChildren<QuestTrackerListView>(true) != null)
+            {
+                Debug.LogWarning(
+                    "[QuestTrackerUiBuilder] QuestHudView 아래에 이미 QuestTrackerListView 가 있습니다. 기존 QuestTracker 를 삭제한 뒤 다시 실행하세요.");
+                return;
+            }
+
             var trackerRoot = new GameObject("QuestTracker", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
             Undo.RegisterCreatedObjectUndo(trackerRoot, "Create QuestTracker");
             trackerRoot.transform.SetParent(hudGo.transform, false);
@@ -36,8 +43,8 @@ namespace DataDrivenDemo.EditorTools
             rootRt.anchorMax = new Vector2(0f, 1f);
             rootRt.pivot = new Vector2(0f, 1f);
             rootRt.anchoredPosition = new Vector2(30, -30);
-            // 가로 고정, 세로는 자식(제목+리스트) 합에 맞춰 CSF가 늘림
-            rootRt.sizeDelta = new Vector2(520f, 0f);
+            // 가로는 QuestTrackerListView 가 텍스트 기준으로 매번 맞춤(최소 minPanelWidth ~ 최대 maxPanelWidth).
+            rootRt.sizeDelta = new Vector2(280f, 0f);
 
             var rootVlg = trackerRoot.GetComponent<VerticalLayoutGroup>();
             rootVlg.padding = new RectOffset(16, 16, 12, 16);
@@ -71,16 +78,41 @@ namespace DataDrivenDemo.EditorTools
             titleLe.preferredHeight = 36f;
             titleLe.flexibleHeight = 0f;
 
-            var contentGo = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(LayoutElement));
+            var scrollArea = new GameObject("ScrollArea", typeof(RectTransform), typeof(Image), typeof(ScrollRect), typeof(LayoutElement));
+            Undo.RegisterCreatedObjectUndo(scrollArea, "Create Tracker Scroll");
+            scrollArea.transform.SetParent(trackerRoot.transform, false);
+            StretchTopFullWidth(scrollArea.GetComponent<RectTransform>());
+            scrollArea.GetComponent<RectTransform>().sizeDelta = Vector2.zero;
+            var scrollLe = scrollArea.GetComponent<LayoutElement>();
+            scrollLe.flexibleWidth = 1f;
+            scrollLe.flexibleHeight = 0f;
+            scrollLe.minHeight = 0f;
+            scrollLe.preferredHeight = 240f;
+            var scrollBg = scrollArea.GetComponent<Image>();
+            scrollBg.color = new Color(1f, 1f, 1f, 0.03f);
+            scrollBg.raycastTarget = true;
+
+            var viewportGo = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D), typeof(Image));
+            Undo.RegisterCreatedObjectUndo(viewportGo, "Create Tracker Viewport");
+            viewportGo.transform.SetParent(scrollArea.transform, false);
+            StretchFull(viewportGo.GetComponent<RectTransform>());
+            var vpImg = viewportGo.GetComponent<Image>();
+            vpImg.color = new Color(1f, 1f, 1f, 0.02f);
+            vpImg.raycastTarget = true;
+
+            var contentGo = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
             Undo.RegisterCreatedObjectUndo(contentGo, "Create TrackerContent");
-            contentGo.transform.SetParent(trackerRoot.transform, false);
+            contentGo.transform.SetParent(viewportGo.transform, false);
             var contentRt = contentGo.GetComponent<RectTransform>();
-            // 부모를 꽉 채우는 스트레치 제거: 리스트 높이 = 행 합계로 선호 높이 계산
-            StretchTopFullWidth(contentRt);
+            contentRt.anchorMin = new Vector2(0f, 1f);
+            contentRt.anchorMax = new Vector2(1f, 1f);
+            contentRt.pivot = new Vector2(0.5f, 1f);
+            contentRt.anchoredPosition = Vector2.zero;
             contentRt.sizeDelta = new Vector2(0f, 0f);
-            var contentLe = contentGo.GetComponent<LayoutElement>();
-            contentLe.flexibleWidth = 1f;
-            contentLe.flexibleHeight = 0f;
+
+            var contentCsf = contentGo.GetComponent<ContentSizeFitter>();
+            contentCsf.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            contentCsf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             var vlg = contentGo.GetComponent<VerticalLayoutGroup>();
             vlg.childAlignment = TextAnchor.UpperLeft;
@@ -90,7 +122,13 @@ namespace DataDrivenDemo.EditorTools
             vlg.childForceExpandHeight = false;
             vlg.childForceExpandWidth = true;
 
-            // HUD Content: CSF 없이 VLG만(스크롤 없음, 최대 4행). 선호 높이는 자식 VLG가 보고.
+            var scrollRect = scrollArea.GetComponent<ScrollRect>();
+            scrollRect.viewport = viewportGo.GetComponent<RectTransform>();
+            scrollRect.content = contentRt;
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            scrollRect.scrollSensitivity = 24f;
 
             // Row prefab (as disabled child template) — VLG로 제목/상세 세로 배치(겹침 방지)
             var rowGo = new GameObject("RowTemplate", typeof(RectTransform), typeof(VerticalLayoutGroup));
@@ -168,13 +206,22 @@ namespace DataDrivenDemo.EditorTools
             list.SetMaxVisible(4);
             SetPrivateField(list, "contentRoot", contentGo.transform);
             SetPrivateField(list, "rowPrefab", row);
+            SetPrivateField(list, "scrollRect", scrollRect);
 
             // Hook list into QuestHudView
             SetPrivateField(hud, "trackerList", list);
 
             Selection.activeGameObject = trackerRoot;
             EditorSceneManager.MarkSceneDirty(scene);
-            Debug.Log("[QuestTrackerUiBuilder] Tracker UI created and wired to QuestHudView.");
+            Debug.Log("[QuestTrackerUiBuilder] Tracker UI 생성 완료(목록 영역 세로 스크롤). QuestHudView 가 붙은 오브젝트에 버튼 OnClick → QuestHudView.ToggleQuestJournal 을 연결하세요.");
+        }
+
+        private static void StretchFull(RectTransform rt)
+        {
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
         }
 
         private static void StretchTopFullWidth(RectTransform rt)

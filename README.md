@@ -1,40 +1,57 @@
 # Data-Driven-Interaction-Demo
 
-3D 공간 상호작용을 데이터(JSON/CSV)로 제어하고 퀘스트·UI·보상·진행도를 연동하는 Unity 데모 프로젝트(Firebase 저장/랭킹, Photon 선택).
+3D 공간에서 **데이터(JSON)로 정의한 상호작용**과 **퀘스트 런타임**을 연결하는 Unity 데모입니다.  
+UGUI·TMP 기반 HUD/저널/의뢰 UI, 로컬 저장 연동, (선택) Firebase·Photon 확장을 염두에 둔 구조입니다.
 
 ## 목표
 
-- 3D 공간 탐색 + 오브젝트 상호작용
-- 데이터 기반(외부 파일 수정만으로) 콘텐츠/퀘스트 흐름 제어
-- UI 상태(안내/진행도/보상) 실시간 반영
-- Firebase 연동(로그인/저장/랭킹)으로 “외부 서비스 연결” 증명
-- (선택) Photon으로 간단한 멀티플레이 동기화
+- 3D 탐색 + `IInteractable` 계열 상호작용(대화·획득·제출 등)
+- **퀘스트 정의를 JSON으로 분리**하고 수락·진행·보고·완료 상태를 일관되게 관리
+- 트래커·저널·의뢰 패널·월드 마커로 **진행 상황을 여러 채널에서 표현**
+- Firebase(로그인/저장/랭킹)·Photon(멀티)는 **선택 연동**으로 남겨 두고, 코어는 오프라인에서도 재현 가능
 
-## 핵심 기능(예정)
+## 구현된 핵심 기능
 
-- **탐색**: 모바일/PC 입력 대응(터치/키보드+마우스)
-- **상호작용**: `IInteractable` 기반(대화/획득/트리거 등 기능 분리)
-- **데이터 구동**: JSON/CSV로 오브젝트/퀘스트/보상/문구 제어
-- **퀘스트**: 상호작용 이벤트 → 조건 체크 → 진행도 갱신 → 보상 지급
-- **UI/UX**: UGUI + TMP, 안내/퀘스트/보상/랭킹 화면 구성
-- **Firebase**: 로그인, 진행도 저장/로드, 랭킹(리더보드) 및 간단 로그
-- **Photon(선택)**: 룸 입장 + 위치/상태 등 최소 단위 동기화
+| 영역 | 내용 |
+|------|------|
+| **상호작용** | `InteractableBase` → `NpcInteractable`, `ItemPickupInteractable`, `TerminalSubmitInteractable`, `QuestGiverInteractable` 등 |
+| **퀘스트** | `QuestSystem` — 수락 목록 저장, 이벤트 기반 진행, 포기/전체 리셋, `QuestCatalog`(JSON) |
+| **UI** | HUD **트래커**(`QuestTrackerListView`: 스크롤·텍스트 기준 **동적 너비**), **Q** 키 **저널**(`QuestJournalView`), **의뢰** 패널(`QuestOfferView`) |
+| **월드** | `QuestObjectiveWorldMarkerManager` — 진행 목표(?) / 의뢰(!) 스프라이트 마커, `QuestFloatingMarker` 빌보드 |
+| **데이터** | `Assets/Data/Json/quest_*.json` 샘플, 로더·후처리(`QuestDefinitionLoader`) |
+
+Firebase·Photon·추가 랭킹 화면은 프로젝트 설정에 따라 **선택**입니다.
 
 ## 기술 스택
 
-- **Unity**: 6000.4.2f1
+- **Unity**: 6000.4.2f1 (프로젝트 설정 기준)
 - **UI**: UGUI, TextMeshPro
-- **Data**: JSON/CSV
-- **Backend**: Firebase, Photon (선택)
+- **데이터**: JSON(TextAsset + `JsonUtility` 등)
+- **Backend(선택)**: Firebase, Photon
 
-## 실행 방법
+## 빠른 실행
 
-1. Unity Hub에서 이 프로젝트를 열고 플레이.
-2. (Firebase 사용 시) `Firebase` 콘솔 프로젝트 생성 후, Unity SDK를 추가하고 설정 파일을 적용.
-3. (Photon 사용 시) Photon AppId를 설정 후, 룸 생성/입장 기능을 확인.
+1. Unity Hub에서 이 폴더를 프로젝트로 연 뒤 **`Assets/Scenes/DemoScene`** 을 연다.
+2. **Play** — 플레이어 이동·근접 상호작용은 씬에 구성된 컨트롤러/트리거를 따른다.
+3. **퀘스트·의뢰**를 씬에 아직 안 깔았다면 [docs/QUEST_DEMO.md](docs/QUEST_DEMO.md)의 **에디터 메뉴** 절을 따라 `Build Quest Offer UI`, `Wire Quest Offer + npc_010 Giver` 등을 실행한다.
 
-## 문서/데모
+### 플레이 힌트
 
-- **퀘스트·의뢰 데모 설정**: [docs/QUEST_DEMO.md](docs/QUEST_DEMO.md) (씬 체크리스트, Wire, 마커, 단축키)
-- 데모 영상/스크린샷: 추후 추가
-- 데이터 스키마/샘플(JSON/CSV): 추후 추가
+| 입력 | 동작 |
+|------|------|
+| **E** | 프롬프트가 있을 때 상호작용 |
+| **Q** | 퀘스트 저널 열기/닫기 (`QuestHudView` 옵션) |
+| **F12** | `QuestDebugAccepter`가 있을 때: 퀘스트·저장 일괄 리셋 |
+
+## 문서
+
+- **퀘스트·의뢰·마커·씬 체크리스트**: [docs/QUEST_DEMO.md](docs/QUEST_DEMO.md)
+- 데모 영상·스크린샷: 저장소 또는 포트폴리오 페이지에 추가 권장
+
+## 아키텍처 한 줄
+
+상호작용 → `QuestEvents` → `QuestSystem`이 런타임/저장 갱신 → `QuestTrackerService`로 HUD/저널 데이터 공유 → `QuestHudView.RenderTracker` 및 월드 마커 매니저가 화면에 반영.
+
+## 라이선스·서드파티
+
+써드파티 에셋은 각 패키지 라이선스를 따릅니다.
