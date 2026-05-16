@@ -4,7 +4,7 @@
 UGUI·TMP 기반 HUD/저널/의뢰 UI, 로컬 저장 연동, (선택) Firebase·Photon 확장을 염두에 둔 구조입니다.
 
 ## 데모 영상
-<img width="218" height="122" alt="Adobe Express - 데이터기반_상호작용_데모_퀘스트_시연" src="https://github.com/user-attachments/assets/32b23c76-0bec-4d5b-9520-bdcf360b5231" />
+<img width="720" height="405" alt="Adobe Express - 데이터기반_상호작용_데모_퀘스트_시연" src="https://github.com/user-attachments/assets/32b23c76-0bec-4d5b-9520-bdcf360b5231" />
 
 ## 목표
 
