@@ -7,7 +7,7 @@ namespace DataDrivenDemo.Quest
 {
     /// <summary>
     /// 테스트용: F1~F10으로 여러 퀘스트를 "수락"해 트래커/저널 UI를 검증합니다.
-    /// (진행/완료 로직은 기존 QuestManager가 담당)
+    /// (진행/완료는 QuestSystem이 담당)
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class QuestDebugAccepter : MonoBehaviour

@@ -7,6 +7,11 @@ using System;
 
 namespace DataDrivenDemo.Quest
 {
+    /// <summary>
+    /// 레거시 단일 퀘스트(JSON 1개) 샘플. <see cref="QuestSystem"/>이 있는 씬에서는 자동 비활성화됩니다.
+    /// 신규 작업·데모는 <see cref="QuestSystem"/> + <see cref="QuestCatalog"/>를 사용하세요.
+    /// </summary>
+    [System.Obsolete("Legacy single-quest sample. Use QuestSystem instead.")]
     [DisallowMultipleComponent]
     public sealed class QuestManager : MonoBehaviour
     {

@@ -29,7 +29,7 @@ namespace DataDrivenDemo.Quest
         }
 
         private readonly Dictionary<string, Runtime> runtimes = new();
-        private const string AcceptedKey = "ddidemo.quest.accepted";
+        private const string AcceptedKey = QuestSaveKeys.AcceptedList;
         private readonly PlayerPrefsSaveService localFallbackSave = new();
 
         private void Awake()
@@ -172,7 +172,7 @@ namespace DataDrivenDemo.Quest
                         lines.AppendLine(o.uiText);
                 }
                 var coins = def.reward != null ? def.reward.coins : 0;
-                lines.AppendLine($"보상: 코인 {coins}");
+                lines.AppendLine(QuestUiText.FormatRewardLine(coins));
                 body = lines.ToString().TrimEnd();
                 return true;
             }
@@ -231,13 +231,12 @@ namespace DataDrivenDemo.Quest
             }
 
             var rewardCoins = def.reward != null ? def.reward.coins : 0;
-            var reward = rewardCoins > 0 ? $"{rewardCoins} Coins" : "-";
 
             body =
                 $"목표\n{objective}\n\n" +
                 $"진행도\n{progress}\n\n" +
                 $"상태\n{status}\n\n" +
-                $"보상\n{reward}";
+                $"보상\n{QuestUiText.FormatRewardBlock(rewardCoins)}";
 
             return true;
         }

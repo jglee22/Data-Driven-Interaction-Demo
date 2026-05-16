@@ -30,7 +30,7 @@ namespace DataDrivenDemo.Core.Flow
         [Tooltip("로그인 성공 시 이메일 인증이 완료돼 있으면 바로 씬을 로드합니다.")]
         [SerializeField] private bool autoContinueOnVerifiedSignIn = true;
         [Tooltip("아이디/비밀번호를 이 기기에 저장합니다. (데모/개발용: 보안 저장 아님)")]
-        [SerializeField] private bool rememberCredentials = true;
+        [SerializeField] private bool rememberCredentials;
         [Tooltip("저장된 아이디/비밀번호가 있으면 시작 시 자동으로 로그인 시도합니다.")]
         [SerializeField] private bool autoSignInOnStart = false;
 

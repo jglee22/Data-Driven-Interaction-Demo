@@ -1,11 +1,13 @@
 using System;
 using UnityEngine;
 
+using DataDrivenDemo.Quest;
+
 namespace DataDrivenDemo.Core.Save
 {
     public sealed class PlayerPrefsSaveService : ISaveService
     {
-        private const string Prefix = "ddidemo.quest.";
+        private const string Prefix = QuestSaveKeys.StatePrefix;
 
         public void SaveQuestState(QuestState state)
         {
@@ -53,7 +55,7 @@ namespace DataDrivenDemo.Core.Save
             onCompleted?.Invoke();
         }
 
-        private static string Key(string questId) => Prefix + questId;
+        private static string Key(string questId) => QuestSaveKeys.StateKey(questId);
     }
 }
 

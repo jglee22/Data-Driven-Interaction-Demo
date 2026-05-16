@@ -3542,7 +3542,7 @@ MonoBehaviour:
   demoSceneName: DemoScene
   sendVerificationAfterSignUp: 1
   autoContinueOnVerifiedSignIn: 1
-  rememberCredentials: 1
+  rememberCredentials: 0
   autoSignInOnStart: 0
 --- !u!1 &1624777541
 GameObject:
@@ -4199,7 +4199,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &2051209995
 Transform:
   m_ObjectHideFlags: 0

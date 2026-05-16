@@ -4348,7 +4348,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &691755210
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4356,7 +4356,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 691755209}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5023c508aaaf6794cbde90f9370e7a53, type: 3}
   m_Name: 
@@ -7967,7 +7967,7 @@ MonoBehaviour:
   uiRoot: {fileID: 2046608853}
   startInGameplay: 1
   menuView: {fileID: 31530992}
-  questId: quest_001
+  questCatalog: {fileID: 735040399}
 --- !u!4 &1365559668
 Transform:
   m_ObjectHideFlags: 0
@@ -11480,10 +11480,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4147692e18dc2b04fbdf34042976ca39, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DataDrivenDemo.Core.Flow.MainMenuController
-  questId: quest_001
+  questCatalog: {fileID: 735040399}
   playSceneName: 
   menuView: {fileID: 31530992}
   uiRoot: {fileID: 2046608853}
+  showGoogleSignIn: 0
   googleAuth: {fileID: 0}
   loadPlaySceneAfterGoogleSignIn: 1
 --- !u!1 &2053702856

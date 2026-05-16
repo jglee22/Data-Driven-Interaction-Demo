@@ -7,6 +7,7 @@ namespace DataDrivenDemo.Quest
     /// <summary>
     /// 의뢰 NPC 위에는 questGiverSprite(bonus_02 등), 진행 중 목표 오브젝트 위에는 objectiveSprite(bonus_01 등)를 표시합니다.
     /// 의뢰 아이콘: 수락 가능한 의뢰가 있을 때만 표시합니다. questGiverOnly 가 비어 있으면 씬의 모든 QuestGiverInteractable 을 검사합니다.
+    /// 갱신 시 마커를 Destroy 후 재생성합니다(데모 규모용). 대량 오브젝트에서는 풀링·캐시 전환을 고려하세요.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class QuestObjectiveWorldMarkerManager : MonoBehaviour

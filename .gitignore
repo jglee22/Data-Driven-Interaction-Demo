@@ -70,6 +70,12 @@ sysinfo.txt
 # Mono auto generated files
 mono_crash.*
 
+# Local secrets / large demo captures (commit via docs/media/ or Release instead)
+*.keystore
+/user.keystore
+/Movie_*.mp4
+/*시연*.mp4*
+
 # Builds
 *.apk
 *.aab
