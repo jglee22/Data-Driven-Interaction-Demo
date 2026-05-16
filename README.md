@@ -5,7 +5,7 @@ UGUI·TMP 기반 HUD/저널/의뢰 UI, 로컬 저장 연동, (선택) Firebase·
 
 ## 데모 영상
 
-시연 영상: [`docs/media/quest-demo.mp4`](docs/media/quest-demo.mp4)
+
 
 ## 목표
 
