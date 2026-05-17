@@ -59,7 +59,7 @@ namespace DataDrivenDemo.Player
             rigidbody = null;
         }
 
-        /// <summary>플레이어를 다시 찾습니다(씬 로드·프리팹 교체 후).</summary>
+        /// <summary>플레이어를 다시 찾습니다(씬 로드/프리팹 교체 후).</summary>
         public static bool Refresh() => Ensure(force: true);
 
         private static bool Ensure(bool force = false)

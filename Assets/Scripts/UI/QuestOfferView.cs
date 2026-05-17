@@ -42,7 +42,7 @@ namespace DataDrivenDemo.UI
             ResolveRefs();
 
             // 패널 루트가 이 컴포넌트와 같은 오브젝트일 때 RootGo.SetActive(false) 하면,
-            // OpenWithIds() 첫 줄 SetActive(true) 직후 Awake 가 다시 끄면서 코루틴 미실행·입력만 꼬이는 상태가 된다.
+            // OpenWithIds() 첫 줄 SetActive(true) 직후 Awake 가 다시 끄면서 코루틴 미실행/입력만 꼬이는 상태가 된다.
             // 가시성은 CanvasGroup 로만 숨김하고, 활성 상태는 호출(Open/Close)이 제어하게 둔다.
             var cgInit = RootGo.GetComponent<CanvasGroup>();
             if (cgInit == null)

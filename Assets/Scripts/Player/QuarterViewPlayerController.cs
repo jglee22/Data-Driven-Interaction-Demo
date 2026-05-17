@@ -94,7 +94,7 @@ namespace DataDrivenDemo.Player
         }
 
         /// <summary>
-        /// UI 메뉴·의뢰 패널 등에서 호출합니다. 컴포넌트를 비활성화하지 않고 이동/점프만 막아 중력은 유지합니다.
+        /// UI 메뉴/의뢰 패널 등에서 호출합니다. 컴포넌트를 비활성화하지 않고 이동/점프만 막아 중력은 유지합니다.
         /// </summary>
         public void SetMovementLock(QuarterViewMovementLockSource source, bool locked)
         {
@@ -115,7 +115,7 @@ namespace DataDrivenDemo.Player
         /// <summary>애니메이션용: 수평 이동 방향(월드).</summary>
         public Vector3 LastPlanarMove => lastPlanarMove;
 
-        /// <summary>애니메이션·점프 판정용(엄격). CharacterController.isGrounded 만 사용합니다.</summary>
+        /// <summary>애니메이션/점프 판정용(엄격). CharacterController.isGrounded 만 사용합니다.</summary>
         public bool IsGroundedForAnimation => controller != null && controller.isGrounded;
 
         public float VerticalSpeed => verticalVelocity.y;
