@@ -1,7 +1,10 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using DataDrivenDemo.Core;
 using DataDrivenDemo.Core.Save;
+using DataDrivenDemo.Firebase;
 using DataDrivenDemo.Interaction;
 using DataDrivenDemo.UI;
 using UnityEngine;
@@ -17,6 +20,7 @@ namespace DataDrivenDemo.Quest
     {
         [SerializeField] private QuestCatalog catalog;
         [SerializeField] private QuestHudView hud;
+        [SerializeField] private QuestObjectiveWorldMarkerManager[] worldMarkerManagers;
 
         [Header("Behavior")]
         [SerializeField] private bool autoAcceptSavedQuests = true;
@@ -29,8 +33,10 @@ namespace DataDrivenDemo.Quest
         }
 
         private readonly Dictionary<string, Runtime> runtimes = new();
-        private const string AcceptedKey = QuestSaveKeys.AcceptedList;
         private readonly PlayerPrefsSaveService localFallbackSave = new();
+
+        /// <summary>Firestore/로컬 저장 복원이 끝난 뒤 true.</summary>
+        public bool IsHydrated { get; private set; }
 
         private void Awake()
         {
@@ -39,18 +45,17 @@ namespace DataDrivenDemo.Quest
             if (hud == null)
                 hud = FindFirstObjectByType<QuestHudView>(FindObjectsInactive.Include);
 
+            CacheWorldMarkerManagers();
             catalog?.Rebuild();
+        }
 
-            LoadAcceptedList();
+        private void CacheWorldMarkerManagers()
+        {
+            if (worldMarkerManagers != null && worldMarkerManagers.Length > 0)
+                return;
 
-            // 수락 목록이 비어있는 "첫 실행/마이그레이션"에서만, 저장된 퀘스트를 자동 수락(옵션)
-            if (autoAcceptSavedQuests && runtimes.Count == 0)
-            {
-                TryAutoAcceptSaved();
-                SaveAcceptedList();
-            }
-
-            RefreshTrackerAll();
+            worldMarkerManagers = FindObjectsByType<QuestObjectiveWorldMarkerManager>(
+                FindObjectsInactive.Include, FindObjectsSortMode.None);
         }
 
         private void OnEnable()
@@ -65,8 +70,7 @@ namespace DataDrivenDemo.Quest
 
         private void Start()
         {
-            // Awake 순서 때문에 월드 마커 매니저가 첫 RenderUi 시점에 비활성이었을 수 있어, 한 프레임 뒤 다시 맞춥니다.
-            RenderUi();
+            StartCoroutine(CoHydrateFromSave());
         }
 
         public bool Accept(string questId)
@@ -295,48 +299,157 @@ namespace DataDrivenDemo.Quest
                 return;
             }
 
+            var remaining = clearIds.Count;
+            if (remaining == 0)
+            {
+                SaveServices.QuestSave.SaveAcceptedQuestIdsAsync(Array.Empty<string>());
+                return;
+            }
+
             foreach (var id in clearIds)
             {
-                SaveServices.QuestSave.ClearQuestState(id);
-                localFallbackSave.ClearQuestState(id);
+                SaveServices.QuestSave.ClearQuestState(id, () =>
+                {
+                    localFallbackSave.ClearQuestState(id);
+                    remaining--;
+                    if (remaining > 0)
+                        return;
+
+                    SaveServices.QuestSave.SaveAcceptedQuestIdsAsync(Array.Empty<string>());
+                });
+            }
+        }
+
+        private IEnumerator CoHydrateFromSave()
+        {
+            yield return CoWaitForSaveServiceReady();
+
+            string[] accepted = null;
+            yield return CoLoadAcceptedIds(ids => accepted = ids);
+
+            if (accepted != null)
+            {
+                foreach (var id in accepted)
+                {
+                    if (string.IsNullOrWhiteSpace(id))
+                        continue;
+                    yield return CoHydrateQuestId(id.Trim());
+                }
+            }
+
+            if (autoAcceptSavedQuests && runtimes.Count == 0 && catalog != null)
+            {
+                foreach (var def in catalog.All())
+                {
+                    if (def == null || string.IsNullOrWhiteSpace(def.id))
+                        continue;
+                    if (runtimes.ContainsKey(def.id))
+                        continue;
+
+                    QuestState saved = null;
+                    yield return CoLoadQuestState(def.id, s => saved = s);
+                    if (saved == null)
+                        continue;
+
+                    HydrateRuntime(def.id, saved);
+                }
             }
 
             SaveAcceptedList();
+            IsHydrated = true;
+            RefreshTrackerAll();
         }
 
-        private void LoadAcceptedList()
+        private IEnumerator CoWaitForSaveServiceReady()
         {
-            if (!PlayerPrefs.HasKey(AcceptedKey))
-                return;
+            var installer = FindFirstObjectByType<FirebaseSaveInstaller>(FindObjectsInactive.Include);
+            if (installer == null)
+                yield break;
 
-            var raw = PlayerPrefs.GetString(AcceptedKey, "");
-            if (string.IsNullOrWhiteSpace(raw))
-                return;
-
-            var ids = raw.Split('|');
-            foreach (var id in ids)
+            var waitedInstall = 0f;
+            const float installerTimeout = 5f;
+            while (SaveServices.QuestSave is PlayerPrefsSaveService && waitedInstall < installerTimeout)
             {
-                if (string.IsNullOrWhiteSpace(id))
-                    continue;
-                var def = catalog != null ? catalog.Get(id) : null;
-                if (def == null)
-                    continue;
-
-                if (runtimes.ContainsKey(def.id))
-                    continue;
-
-                var saved = LoadStateWithFallback(def.id);
-                var state = saved ?? new QuestState { questId = def.id };
-                runtimes[def.id] = new Runtime { def = def, state = state };
+                waitedInstall += Time.unscaledDeltaTime;
+                yield return null;
             }
+
+            var bootstrap = FindFirstObjectByType<FirebaseBootstrap>(FindObjectsInactive.Include);
+            if (bootstrap == null)
+                yield break;
+
+            var waitedAuth = 0f;
+            const float authTimeout = 30f;
+            while (!bootstrap.IsReady && waitedAuth < authTimeout)
+            {
+                waitedAuth += Time.unscaledDeltaTime;
+                yield return null;
+            }
+        }
+
+        private IEnumerator CoLoadAcceptedIds(Action<string[]> onLoaded)
+        {
+            var done = false;
+            string[] result = Array.Empty<string>();
+            SaveServices.QuestSave.LoadAcceptedQuestIdsAsync(ids =>
+            {
+                result = ids ?? Array.Empty<string>();
+                done = true;
+            });
+
+            while (!done)
+                yield return null;
+
+            onLoaded?.Invoke(result);
+        }
+
+        private IEnumerator CoLoadQuestState(string questId, Action<QuestState> onLoaded)
+        {
+            var done = false;
+            QuestState state = null;
+            SaveServices.QuestSave.LoadQuestStateAsync(questId, s =>
+            {
+                state = s;
+                done = true;
+            });
+
+            while (!done)
+                yield return null;
+
+            if (state == null)
+                state = localFallbackSave.LoadQuestState(questId);
+
+            onLoaded?.Invoke(state);
+        }
+
+        private IEnumerator CoHydrateQuestId(string questId)
+        {
+            var def = catalog != null ? catalog.Get(questId) : null;
+            if (def == null)
+                yield break;
+
+            if (runtimes.ContainsKey(def.id))
+                yield break;
+
+            QuestState saved = null;
+            yield return CoLoadQuestState(def.id, s => saved = s);
+            HydrateRuntime(def.id, saved);
+        }
+
+        private void HydrateRuntime(string questId, QuestState saved)
+        {
+            var def = catalog != null ? catalog.Get(questId) : null;
+            if (def == null)
+                return;
+
+            var state = saved ?? new QuestState { questId = def.id };
+            runtimes[def.id] = new Runtime { def = def, state = state };
         }
 
         private void SaveAcceptedList()
         {
             var ids = runtimes.Keys.ToArray();
-            var raw = string.Join("|", ids);
-            PlayerPrefs.SetString(AcceptedKey, raw);
-            PlayerPrefs.Save();
+            SaveServices.QuestSave.SaveAcceptedQuestIdsAsync(ids);
         }
 
         /// <summary>
@@ -380,26 +493,9 @@ namespace DataDrivenDemo.Quest
             return false;
         }
 
-        private void TryAutoAcceptSaved()
-        {
-            if (catalog == null) return;
-
-            foreach (var def in catalog.All())
-            {
-                if (def == null || string.IsNullOrWhiteSpace(def.id))
-                    continue;
-                var saved = LoadStateWithFallback(def.id);
-                if (saved == null)
-                    continue;
-                if (runtimes.ContainsKey(def.id))
-                    continue;
-                runtimes[def.id] = new Runtime { def = def, state = saved };
-            }
-        }
-
         private void OnEventRaised(QuestEvent evt)
         {
-            if (runtimes.Count == 0)
+            if (!IsHydrated || runtimes.Count == 0)
                 return;
 
             var anyChanged = false;
@@ -518,8 +614,21 @@ namespace DataDrivenDemo.Quest
         {
             hud?.RenderTracker(QuestTrackerService.Items);
             hud?.RefreshQuestJournalIfOpen();
-            foreach (var m in UnityEngine.Object.FindObjectsByType<QuestObjectiveWorldMarkerManager>(
-                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+
+            var ctx = GameplaySceneContext.Instance;
+            if (ctx != null)
+            {
+                ctx.RefreshWorldMarkers();
+                return;
+            }
+
+            if (worldMarkerManagers == null || worldMarkerManagers.Length == 0)
+                CacheWorldMarkerManagers();
+
+            if (worldMarkerManagers == null)
+                return;
+
+            foreach (var m in worldMarkerManagers)
             {
                 if (m != null && m.isActiveAndEnabled)
                     m.RefreshFrom(this);

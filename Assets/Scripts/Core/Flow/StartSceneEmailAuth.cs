@@ -37,12 +37,20 @@ namespace DataDrivenDemo.Core.Flow
         private FirebaseAuth auth;
         private bool busy;
 
+        private static bool AllowRememberCredentials =>
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            true;
+#else
+            false;
+#endif
+
         private void Awake()
         {
             auth = FirebaseAuth.DefaultInstance;
             Debug.Log("[StartSceneEmailAuth] Awake.");
             SetStatus("준비됨");
 
+            ApplyRememberCredentialsPolicy();
             LoadSavedOptions();
             SyncTogglesFromOptions();
             LoadSavedCredentialsIntoInputs();
@@ -50,8 +58,25 @@ namespace DataDrivenDemo.Core.Flow
                 TryAutoSignIn();
         }
 
+        private void ApplyRememberCredentialsPolicy()
+        {
+            if (AllowRememberCredentials)
+                return;
+
+            rememberCredentials = false;
+            autoSignInOnStart = false;
+            ClearSavedCredentials();
+
+            if (rememberToggle != null)
+                rememberToggle.gameObject.SetActive(false);
+            if (autoSignInToggle != null)
+                autoSignInToggle.gameObject.SetActive(false);
+        }
+
         public void SetRememberCredentials(bool enabled)
         {
+            if (!AllowRememberCredentials)
+                enabled = false;
             rememberCredentials = enabled;
             if (!rememberCredentials)
                 ClearSavedCredentials();
@@ -174,7 +199,7 @@ namespace DataDrivenDemo.Core.Flow
                                 return;
                             }
 
-                            if (rememberCredentials)
+                            if (AllowRememberCredentials && rememberCredentials)
                                 SaveCredentials(email, pass);
 
                             SetStatus("로그인 완료! 데모 씬으로 이동합니다.");
@@ -310,7 +335,9 @@ namespace DataDrivenDemo.Core.Flow
 
         private void LoadSavedOptions()
         {
-            // 인스펙터 기본값을 fallback으로 두고, 저장값이 있으면 덮어씀
+            if (!AllowRememberCredentials)
+                return;
+
             if (PlayerPrefs.HasKey(KeyRemember))
                 rememberCredentials = PlayerPrefs.GetInt(KeyRemember, rememberCredentials ? 1 : 0) == 1;
             if (PlayerPrefs.HasKey(KeyAuto))
@@ -325,6 +352,9 @@ namespace DataDrivenDemo.Core.Flow
 
         private void SaveOptions()
         {
+            if (!AllowRememberCredentials)
+                return;
+
             PlayerPrefs.SetInt(KeyRemember, rememberCredentials ? 1 : 0);
             PlayerPrefs.SetInt(KeyAuto, autoSignInOnStart ? 1 : 0);
             PlayerPrefs.Save();
@@ -353,6 +383,9 @@ namespace DataDrivenDemo.Core.Flow
 
         private void LoadSavedCredentialsIntoInputs()
         {
+            if (!AllowRememberCredentials)
+                return;
+
             if (emailInput == null || passwordInput == null)
                 return;
 
@@ -367,6 +400,9 @@ namespace DataDrivenDemo.Core.Flow
 
         private void SaveCredentials(string email, string pass)
         {
+            if (!AllowRememberCredentials)
+                return;
+
             PlayerPrefs.SetString(KeyEmail, email ?? "");
             PlayerPrefs.SetString(KeyPass, Encode(pass ?? ""));
             PlayerPrefs.Save();

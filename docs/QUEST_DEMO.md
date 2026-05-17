@@ -1,4 +1,4 @@
-# 퀘스트·의뢰 데모 설정 가이드
+# 퀘스트/의뢰 데모 설정 가이드
 
 `DemoScene` 기준으로 **멀티 퀘스트(`QuestSystem`)**, **의뢰 UI**, **저널/트래커**, **월드 마커**를 사용할 때의 체크리스트와 역할 정리입니다.
 
@@ -6,7 +6,7 @@
 
 ## 빠른 체크리스트 (씬 새로 맞출 때)
 
-1. 씬에 **`EventSystem`**이 있는지 확인합니다. 없으면 UI 클릭·수락이 동작하지 않을 수 있습니다.
+1. 씬에 **`EventSystem`**이 있는지 확인합니다. 없으면 UI 클릭/수락이 동작하지 않을 수 있습니다.
 2. 메뉴 **`Tools → DataDrivenDemo → Build Quest Offer UI`**로 의뢰 패널을 생성합니다. 이미 있으면 생략합니다.
 3. **`Tools → DataDrivenDemo → Wire Quest Offer + npc_010 Giver`**를 실행합니다.  
    - `npc_010`이 없으면 `npc_001` 옆에 **`NPC_QuestGiver_010`**이 생성되고, **`npc_001`은 Talk용 `NpcInteractable`로 유지**됩니다.
@@ -14,7 +14,8 @@
    - 의뢰 NPC만 아이콘을 쓰려면 **`Quest Giver Only`**에 해당 `QuestGiverInteractable` 하나만 넣습니다.
 5. 플레이어 루트에 **`QuarterViewPlayerController`** + **`ProximityInteractor`** + 트리거 콜라이더를 둡니다.  
    - Tag **`Player`**를 권장합니다(없어도 `QuarterViewPlayerController`로 찾습니다).  
-   - 카메라·UI·의뢰 패널은 **`PlayerLocator`**가 시작 시 플레이어를 자동 연결합니다. 인스펙터에 플레이어를 끌어다 넣을 필요는 없습니다.
+   - 카메라/UI/의뢰 패널은 **`PlayerLocator`**가 시작 시 플레이어를 자동 연결합니다. 인스펙터에 플레이어를 끌어다 넣을 필요는 없습니다.
+6. (권장) 빈 GameObject에 **`GameplaySceneContext`**를 추가하고 `QuestSystem`/`QuestHud`/`QuestJournal`/`QuestObjectiveWorldMarkerManager`를 연결합니다. 없어도 Awake에서 1회 탐색으로 동작합니다.
 
 ---
 
@@ -22,10 +23,10 @@
 
 | 구분 | 사용 |
 |------|------|
-| **`QuestSystem` + `QuestCatalog`** | 데모·포폴 **본선** (멀티 퀘스트, 수락 목록, 트래커/저널/마커) |
+| **`QuestSystem` + `QuestCatalog`** | 데모/포폴 **본선** (멀티 퀘스트, 수락 목록, 트래커/저널/마커) |
 | **`QuestManager`** (`Quest/Legacy/`) | 단일 JSON 샘플. `QuestSystem`이 있으면 자동 비활성. 자세한 내용은 [LEGACY.md](LEGACY.md) |
 
-메인 메뉴 **New Game** / **Continue**는 `QuestCatalog` 전체·수락 목록(`ddidemo.quest.accepted`) 기준입니다(`quest_001` 단일 키가 아님).
+메인 메뉴 **New Game** / **Continue**는 `QuestCatalog` 전체/수락 목록(`ddidemo.quest.accepted`) 기준입니다(`quest_001` 단일 키가 아님).
 
 ---
 
@@ -45,15 +46,15 @@
 
 | 메뉴 | 설명 |
 |------|------|
-| **Build Quest Offer UI** | `QuestOffer` 루트·스크롤·상세·버튼 등을 생성합니다. Canvas에 `GraphicRaycaster`가 없으면 추가합니다. |
+| **Build Quest Offer UI** | `QuestOffer` 루트/스크롤/상세/버튼 등을 생성합니다. Canvas에 `GraphicRaycaster`가 없으면 추가합니다. |
 | **Wire Quest Offer + npc_010 Giver** | 의뢰 NPC에 `QuestGiverInteractable`과 Offer를 연결하고, `offeredQuestIds` 1~5를 채우며, `QuestDebugAccepter`의 F1~F5 단축 수락을 끕니다. |
-| **Build Quest Journal UI** | 저널 UI(목록·상세·포기·확인)를 생성합니다. |
+| **Build Quest Journal UI** | 저널 UI(목록/상세/포기/확인)를 생성합니다. |
 | **Build Quest Tracker UI** | HUD 트래커를 생성합니다. |
 | **Build Test Interactables (002~005)** | `npc_002`~`005` 등 테스트용 오브젝트를 배치합니다. |
 
 ---
 
-## 플레이 중 단축키·동작
+## 플레이 중 단축키/동작
 
 - **`E`**: 프롬프트가 떠 있을 때 상호작용합니다(클릭과 동일).
 - **`F12`** (`QuestDebugAccepter`가 씬에 있을 때): 퀘스트 전체 리셋과 저장 정리를 수행합니다.  
@@ -71,11 +72,13 @@
 
 ---
 
-## 데이터·저장
+## 데이터/저장
 
 - 퀘스트 정의: `Assets/Data/Json/quest_*.json`, 카탈로그는 **`QuestCatalog`** 컴포넌트의 배열에 등록합니다.
-- 수락 목록·진행: `QuestSystem` + `SaveServices.QuestSave`(기본 `PlayerPrefs` 등).
-- **리셋 후 재시작 시 빈 상태**가 되려면 F12 등으로 **`ResetAllQuests(clearSavedStates: true)`**가 호출되어야 합니다(카탈로그에 있는 퀘스트 id의 로컬 진행도까지 지움).
+- 수락 목록/진행: `QuestSystem` + `SaveServices.QuestSave`(기본 `PlayerPrefs`, Firebase 사용 시 `FirestoreQuestSaveService`).
+- **시작 시 복원**: `QuestSystem`이 `Start`에서 비동기로 수락 목록/각 퀘스트 상태를 불러온 뒤(`IsHydrated`) HUD/마커를 갱신합니다. Firestore 사용 시 수락 목록은 `users/{uid}/saves/quest_meta` 문서의 `accepted` 필드에도 저장됩니다.
+- **Continue(메인 메뉴)**: `QuestDemoSaveHelper.HasAnySavedProgressAsync`로 로컬/Firestore 저장 존재 여부를 확인합니다.
+- **리셋 후 재시작 시 빈 상태**가 되려면 F12 등으로 **`ResetAllQuests(clearSavedStates: true)`**가 호출되어야 합니다(카탈로그에 있는 퀘스트 id의 로컬/클라우드 진행도까지 지움).
 
 ---
 

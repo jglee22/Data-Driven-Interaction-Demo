@@ -76,6 +76,10 @@ mono_crash.*
 /Movie_*.mp4
 /*시연*.mp4*
 
+# Firebase project config (use *.sample copies; see README)
+/Assets/google-services.json
+/Assets/StreamingAssets/google-services-desktop.json
+
 # Builds
 *.apk
 *.aab

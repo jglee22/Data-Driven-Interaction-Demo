@@ -5,9 +5,7 @@ using UnityEngine;
 namespace DataDrivenDemo.Quest
 {
     /// <summary>
-    /// 의뢰 NPC 위에는 questGiverSprite(bonus_02 등), 진행 중 목표 오브젝트 위에는 objectiveSprite(bonus_01 등)를 표시합니다.
-    /// 의뢰 아이콘: 수락 가능한 의뢰가 있을 때만 표시합니다. questGiverOnly 가 비어 있으면 씬의 모든 QuestGiverInteractable 을 검사합니다.
-    /// 갱신 시 마커를 Destroy 후 재생성합니다(데모 규모용). 대량 오브젝트에서는 풀링·캐시 전환을 고려하세요.
+    /// 의뢰 NPC(!) / 진행 목표(?) 월드 스프라이트 마커. 오브젝트 풀링으로 재사용합니다.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class QuestObjectiveWorldMarkerManager : MonoBehaviour
@@ -16,11 +14,10 @@ namespace DataDrivenDemo.Quest
         [SerializeField] private QuestSystem questSystem;
 
         [Header("Quest giver (의뢰 아이콘)")]
-        [Tooltip("비어 있으면: 씬의 모든 QuestGiverInteractable 을 대상으로, 수락 가능한 의뢰가 있을 때만 ! 마커를 띄웁니다.\n" +
-                 "1명만 의뢰 NPC 라면: 그 오브젝트의 QuestGiverInteractable 만 배열에 넣으세요.")]
+        [Tooltip("비어 있으면 씬의 QuestGiverInteractable을 Awake에서 한 번만 수집합니다.")]
         [SerializeField] private QuestGiverInteractable[] questGiverOnly;
 
-        [Header("Sprites (예: Clean Vector Icons/Update/bonus_02, bonus_01)")]
+        [Header("Sprites")]
         [SerializeField] private Sprite questGiverSprite;
         [SerializeField] private Sprite questObjectiveSprite;
 
@@ -29,19 +26,22 @@ namespace DataDrivenDemo.Quest
         [SerializeField] private float iconWorldScale = 1f;
         [SerializeField] private int sortingOrder = 500;
 
-        private readonly List<GameObject> spawned = new();
+        private readonly Dictionary<int, GameObject> objectiveByAnchorId = new();
+        private readonly Dictionary<int, GameObject> giverByAnchorId = new();
+        private QuestGiverInteractable[] cachedGivers;
 
         private void Awake()
         {
             if (questSystem == null)
                 questSystem = FindFirstObjectByType<QuestSystem>(FindObjectsInactive.Include);
+
+            CacheGivers();
         }
 
         private void OnEnable()
         {
             if (questSystem == null)
                 questSystem = FindFirstObjectByType<QuestSystem>(FindObjectsInactive.Include);
-            // QuestSystem.RenderUi 는 수락/리셋 등 이벤트 때만 호출됩니다. 매니저가 나중에 활성화되면 여기서 한 번 맞춥니다.
             RefreshFrom(questSystem);
         }
 
@@ -50,66 +50,107 @@ namespace DataDrivenDemo.Quest
             if (!isActiveAndEnabled)
                 return;
 
-            ClearSpawned();
-
             if (sys == null)
                 sys = questSystem;
+
+            var activeObjectiveIds = new HashSet<int>();
+            var activeGiverIds = new HashSet<int>();
 
             var objectiveAnchors = new HashSet<Transform>();
             if (sys != null)
                 sys.GetWorldMarkerObjectiveAnchors(objectiveAnchors);
 
-            // 진행 마커(?) — 수락된 퀘스트의 현재 목표만
             foreach (var t in objectiveAnchors)
             {
                 if (t == null || questObjectiveSprite == null)
                     continue;
-                SpawnOne(t, questObjectiveSprite, sortingOrder);
+
+                var id = t.GetInstanceID();
+                activeObjectiveIds.Add(id);
+                SyncMarker(objectiveByAnchorId, id, t, questObjectiveSprite, sortingOrder);
             }
 
-            // 의뢰 마크(!) — 아직 수락할 수 있는 의뢰가 있을 때만
+            DeactivateStale(objectiveByAnchorId, activeObjectiveIds);
+
+            if (questGiverSprite == null)
+                return;
+
+            var givers = cachedGivers;
+            if (givers == null || givers.Length == 0)
+                CacheGivers();
+
+            givers = cachedGivers;
+            if (givers == null)
+                return;
+
+            foreach (var giver in givers)
+            {
+                if (giver == null)
+                    continue;
+                if (sys != null && !sys.GiverHasAnyAcceptableOffer(giver))
+                    continue;
+
+                var id = giver.transform.GetInstanceID();
+                activeGiverIds.Add(id);
+                SyncMarker(giverByAnchorId, id, giver.transform, questGiverSprite, sortingOrder + 50);
+            }
+
+            DeactivateStale(giverByAnchorId, activeGiverIds);
+        }
+
+        private void CacheGivers()
+        {
             if (questGiverOnly != null && questGiverOnly.Length > 0)
             {
-                foreach (var giver in questGiverOnly)
-                {
-                    if (giver == null || questGiverSprite == null)
-                        continue;
-                    if (sys != null && !sys.GiverHasAnyAcceptableOffer(giver))
-                        continue;
-                    SpawnOne(giver.transform, questGiverSprite, sortingOrder + 50);
-                }
+                cachedGivers = questGiverOnly;
+                return;
             }
-            else
-            {
-                foreach (var giver in UnityEngine.Object.FindObjectsByType<QuestGiverInteractable>(
-                             FindObjectsInactive.Include, FindObjectsSortMode.None))
-                {
-                    if (giver == null || questGiverSprite == null)
-                        continue;
-                    if (sys != null && !sys.GiverHasAnyAcceptableOffer(giver))
-                        continue;
-                    SpawnOne(giver.transform, questGiverSprite, sortingOrder + 50);
-                }
-            }
+
+            cachedGivers = FindObjectsByType<QuestGiverInteractable>(
+                FindObjectsInactive.Include, FindObjectsSortMode.None);
         }
 
-        private void ClearSpawned()
+        private static void DeactivateStale(Dictionary<int, GameObject> pool, HashSet<int> activeIds)
         {
-            foreach (var go in spawned)
+            var toDeactivate = new List<int>();
+            foreach (var kv in pool)
             {
-                if (go != null)
-                    Destroy(go);
+                if (!activeIds.Contains(kv.Key) && kv.Value != null)
+                    toDeactivate.Add(kv.Key);
             }
 
-            spawned.Clear();
+            foreach (var id in toDeactivate)
+            {
+                if (pool.TryGetValue(id, out var go) && go != null)
+                    go.SetActive(false);
+            }
         }
 
-        private void OnDestroy() => ClearSpawned();
+        private void SyncMarker(
+            Dictionary<int, GameObject> pool,
+            int anchorId,
+            Transform anchor,
+            Sprite sprite,
+            int sortingOrderOverride)
+        {
+            if (!pool.TryGetValue(anchorId, out var go) || go == null)
+            {
+                go = CreateMarker(anchor, sprite, sortingOrderOverride);
+                pool[anchorId] = go;
+            }
 
-        private void SpawnOne(Transform anchor, Sprite sprite, int sortingOrderOverride)
+            go.SetActive(true);
+            var billboard = go.GetComponent<QuestFloatingMarker>();
+            if (billboard != null)
+                billboard.Initialize(anchor, heightOffset);
+
+            if (anchor != null)
+                go.transform.position = anchor.position + Vector3.up * heightOffset;
+        }
+
+        private GameObject CreateMarker(Transform anchor, Sprite sprite, int sortingOrderOverride)
         {
             var go = new GameObject($"QuestMarker_{sprite.name}");
-            // 부모가 멀리 있으면 첫 프레임 위치가 꼬일 수 있어 씬 루트에 둡니다.
             go.transform.SetParent(null, true);
 
             var sr = go.AddComponent<SpriteRenderer>();
@@ -126,7 +167,24 @@ namespace DataDrivenDemo.Quest
             if (anchor != null)
                 go.transform.position = anchor.position + Vector3.up * heightOffset;
 
-            spawned.Add(go);
+            return go;
+        }
+
+        private void OnDestroy()
+        {
+            DestroyPool(objectiveByAnchorId);
+            DestroyPool(giverByAnchorId);
+        }
+
+        private static void DestroyPool(Dictionary<int, GameObject> pool)
+        {
+            foreach (var kv in pool)
+            {
+                if (kv.Value != null)
+                    Destroy(kv.Value);
+            }
+
+            pool.Clear();
         }
     }
 }

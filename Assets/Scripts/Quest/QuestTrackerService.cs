@@ -7,7 +7,7 @@ using UnityEngine;
 namespace DataDrivenDemo.Quest
 {
     /// <summary>
-    /// 여러 퀘스트를 HUD/저널에 표시하기 위한 레지스트리.
+    /// 여러 퀘스트를 HUD/저널에 표시하기 위한 데모용 static 레지스트리.
     /// HUD는 QuestTrackerListView가 상위 N개만; 저널은 전체를 스크롤로 표시.
     /// </summary>
     public static class QuestTrackerService

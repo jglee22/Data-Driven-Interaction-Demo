@@ -5,21 +5,21 @@ using UnityEngine;
 
 namespace DataDrivenDemo.Quest
 {
-    /// <summary>메인 메뉴 Continue/New Game 등 데모용 저장 일괄 조회·삭제.</summary>
+    /// <summary>메인 메뉴 Continue/New Game 등 데모용 저장 일괄 조회/삭제.</summary>
     public static class QuestDemoSaveHelper
     {
         public static bool HasAnySavedProgress(QuestCatalog catalog)
         {
-            if (HasNonEmptyAcceptedList())
-                return true;
+            return PlayerPrefsSaveService.ProbeLocal(CollectQuestIds(catalog));
+        }
 
-            foreach (var id in CollectQuestIds(catalog))
-            {
-                if (HasLocalState(id))
-                    return true;
-            }
+        public static void HasAnySavedProgressAsync(QuestCatalog catalog, Action<bool> onResult)
+        {
+            if (onResult == null)
+                return;
 
-            return false;
+            var ids = CollectQuestIds(catalog);
+            SaveServices.QuestSave.ProbeAnySavedProgressAsync(ids, onResult);
         }
 
         public static void ClearAllProgress(QuestCatalog catalog, Action onCompleted = null)
@@ -27,9 +27,7 @@ namespace DataDrivenDemo.Quest
             var ids = CollectQuestIds(catalog);
             if (ids.Count == 0)
             {
-                PlayerPrefs.DeleteKey(QuestSaveKeys.AcceptedList);
-                PlayerPrefs.Save();
-                onCompleted?.Invoke();
+                SaveServices.QuestSave.SaveAcceptedQuestIdsAsync(Array.Empty<string>(), onCompleted);
                 return;
             }
 
@@ -42,53 +40,25 @@ namespace DataDrivenDemo.Quest
                     if (remaining > 0)
                         return;
 
-                    PlayerPrefs.DeleteKey(QuestSaveKeys.AcceptedList);
-                    PlayerPrefs.Save();
-                    onCompleted?.Invoke();
+                    SaveServices.QuestSave.SaveAcceptedQuestIdsAsync(Array.Empty<string>(), onCompleted);
                 });
             }
         }
 
-        private static bool HasNonEmptyAcceptedList()
+        public static List<string> CollectQuestIds(QuestCatalog catalog)
         {
-            if (!PlayerPrefs.HasKey(QuestSaveKeys.AcceptedList))
-                return false;
+            var ids = new List<string>();
+            if (catalog == null)
+                return ids;
 
-            var raw = PlayerPrefs.GetString(QuestSaveKeys.AcceptedList, "");
-            return !string.IsNullOrWhiteSpace(raw);
-        }
-
-        private static bool HasLocalState(string questId)
-        {
-            if (string.IsNullOrWhiteSpace(questId))
-                return false;
-
-            var key = QuestSaveKeys.StateKey(questId);
-            if (!PlayerPrefs.HasKey(key))
-                return false;
-
-            var json = PlayerPrefs.GetString(key, "");
-            return !string.IsNullOrWhiteSpace(json);
-        }
-
-        private static List<string> CollectQuestIds(QuestCatalog catalog)
-        {
-            var ids = new HashSet<string>(StringComparer.Ordinal)
+            catalog.Rebuild();
+            foreach (var def in catalog.All())
             {
-                "quest_001"
-            };
-
-            if (catalog != null)
-            {
-                catalog.Rebuild();
-                foreach (var def in catalog.All())
-                {
-                    if (def != null && !string.IsNullOrWhiteSpace(def.id))
-                        ids.Add(def.id);
-                }
+                if (def != null && !string.IsNullOrWhiteSpace(def.id))
+                    ids.Add(def.id);
             }
 
-            return new List<string>(ids);
+            return ids;
         }
     }
 }

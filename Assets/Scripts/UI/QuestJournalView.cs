@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DataDrivenDemo.Core;
 using DataDrivenDemo.Quest;
 using TMPro;
 using UnityEngine;
@@ -27,6 +28,7 @@ namespace DataDrivenDemo.UI
         [SerializeField] private Button confirmNoButton;
 
         [SerializeField] private bool closeOnEscape = true;
+        [SerializeField] private QuestSystem questSystem;
 
         private readonly List<QuestTrackerRowView> rows = new();
         private string selectedQuestId;
@@ -137,7 +139,7 @@ namespace DataDrivenDemo.UI
         public void SelectQuest(string questId, string title, string body)
         {
             selectedQuestId = questId;
-            var sys = FindFirstObjectByType<QuestSystem>(FindObjectsInactive.Include);
+            var sys = ResolveQuestSystem();
             if (sys != null && sys.TryGetJournalDetail(questId, out var t, out var b))
             {
                 if (detailTitle != null) detailTitle.text = t ?? "";
@@ -181,8 +183,27 @@ namespace DataDrivenDemo.UI
             }
         }
 
+        private QuestSystem ResolveQuestSystem()
+        {
+            if (questSystem != null)
+                return questSystem;
+
+            var ctx = GameplaySceneContext.Instance;
+            if (ctx != null && ctx.QuestSystem != null)
+                return ctx.QuestSystem;
+
+            return FindFirstObjectByType<QuestSystem>(FindObjectsInactive.Include);
+        }
+
         private void Awake()
         {
+            if (questSystem == null)
+            {
+                var ctx = GameplaySceneContext.Instance;
+                if (ctx != null)
+                    questSystem = ctx.QuestSystem;
+            }
+
             if (abandonButton != null)
             {
                 abandonButton.onClick.RemoveAllListeners();
@@ -220,7 +241,7 @@ namespace DataDrivenDemo.UI
                 return;
             }
 
-            var sys = FindFirstObjectByType<QuestSystem>(FindObjectsInactive.Include);
+            var sys = ResolveQuestSystem();
             if (sys == null)
             {
                 HideConfirm();
