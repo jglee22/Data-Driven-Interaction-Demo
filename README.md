@@ -7,9 +7,9 @@ UGUI·TMP 기반 HUD/저널/의뢰 UI, 로컬 저장 연동, (선택) Firebase·
 
 > 약 43초 · StartScene 로그인 → 퀘스트 수락 → 진행 → 보고·완료
 
-[![데모 시연 썸네일](docs/media/demo-thumbnail.png)](https://github.com/user-attachments/assets/0c7f7703-3479-4493-b606-1359198e8e22)
+![데모 시연 썸네일](docs/media/demo-thumbnail.png)
 
-[▶ GitHub에서 재생](https://github.com/user-attachments/assets/0c7f7703-3479-4493-b606-1359198e8e22)
+**[▶ GitHub에서 데모 영상 재생](https://github.com/user-attachments/assets/0c7f7703-3479-4493-b606-1359198e8e22)** (새 탭에서 열림)
 
 **시연 흐름**
 
@@ -18,7 +18,7 @@ UGUI·TMP 기반 HUD/저널/의뢰 UI, 로컬 저장 연동, (선택) Firebase·
 3. **진행** — 대화·획득·터미널 제출로 목표 단계 완료
 4. **저장** — PlayerPrefs 미러 + (선택) Firestore 복원
 
-저장소 원본 MP4: [`docs/데이터기반_상호작용_데모_퀘스트_시연.mp4`](docs/데이터기반_상호작용_데모_퀘스트_시연.mp4)
+저장소 원본 MP4: `docs/데이터기반_상호작용_데모_퀘스트_시연.mp4`
 
 ## 목표
 
