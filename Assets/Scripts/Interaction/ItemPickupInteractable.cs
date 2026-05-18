@@ -13,6 +13,8 @@ namespace DataDrivenDemo.Interaction
 
         private bool pickedUp;
 
+        protected override void Awake() => base.Awake();
+
         public override bool CanInteract(GameObject interactor) => !pickedUp;
 
         public override void Interact(GameObject interactor)

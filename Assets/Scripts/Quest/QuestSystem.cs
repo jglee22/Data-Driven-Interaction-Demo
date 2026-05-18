@@ -33,13 +33,18 @@ namespace DataDrivenDemo.Quest
         }
 
         private readonly Dictionary<string, Runtime> runtimes = new();
+        private readonly HashSet<string> dirtyQuestIds = new(StringComparer.Ordinal);
         private readonly PlayerPrefsSaveService localFallbackSave = new();
 
         /// <summary>Firestore/로컬 저장 복원이 끝난 뒤 true.</summary>
         public bool IsHydrated { get; private set; }
 
+        private bool skipStartHydrate;
+
         private void Awake()
         {
+            if (catalog == null)
+                catalog = GetComponent<QuestCatalog>();
             if (catalog == null)
                 catalog = FindFirstObjectByType<QuestCatalog>(FindObjectsInactive.Include);
             if (hud == null)
@@ -47,6 +52,7 @@ namespace DataDrivenDemo.Quest
 
             CacheWorldMarkerManagers();
             catalog?.Rebuild();
+            EnsureQuestEventSubscription();
         }
 
         private void CacheWorldMarkerManagers()
@@ -58,19 +64,78 @@ namespace DataDrivenDemo.Quest
                 FindObjectsInactive.Include, FindObjectsSortMode.None);
         }
 
-        private void OnEnable()
-        {
-            QuestEvents.EventRaised += OnEventRaised;
-        }
+        private void OnEnable() => EnsureQuestEventSubscription();
 
-        private void OnDisable()
+        private void OnDisable() => QuestEvents.EventRaised -= OnEventRaised;
+
+        private void EnsureQuestEventSubscription()
         {
             QuestEvents.EventRaised -= OnEventRaised;
+            QuestEvents.EventRaised += OnEventRaised;
         }
 
         private void Start()
         {
+            if (skipStartHydrate)
+                return;
+
             StartCoroutine(CoHydrateFromSave());
+        }
+
+        /// <summary>Edit Mode 테스트: Start 시 자동 복원을 건너뜁니다.</summary>
+        public void SetSkipStartHydrateForTests(bool skip) => skipStartHydrate = skip;
+
+        /// <summary>Edit Mode 테스트: FindFirstObjectByType 대신 지정 카탈로그를 사용합니다.</summary>
+        public void SetCatalogForTests(QuestCatalog testCatalog) => catalog = testCatalog;
+
+        /// <summary>Edit Mode 테스트: 수동 복원·진행 검증용 초기화.</summary>
+        public void ConfigureForTests(QuestCatalog testCatalog)
+        {
+            skipStartHydrate = true;
+            catalog = testCatalog;
+            runtimes.Clear();
+            dirtyQuestIds.Clear();
+            IsHydrated = true;
+            EnsureQuestEventSubscription();
+        }
+
+        /// <summary>Edit Mode 테스트: <see cref="CoHydrateFromSave"/>를 동기 실행합니다.</summary>
+        public void RunHydrateBlockingForTests()
+        {
+            IsHydrated = false;
+            RunCoroutineBlocking(CoHydrateFromSave());
+        }
+
+        private static void RunCoroutineBlocking(IEnumerator routine)
+        {
+            if (routine == null)
+                return;
+
+            var stack = new Stack<IEnumerator>();
+            stack.Push(routine);
+
+            while (stack.Count > 0)
+            {
+                var current = stack.Peek();
+                if (!current.MoveNext())
+                {
+                    stack.Pop();
+                    continue;
+                }
+
+                if (current.Current is IEnumerator nested)
+                    stack.Push(nested);
+            }
+        }
+
+        public bool TryGetQuestState(string questId, out QuestState state)
+        {
+            state = null;
+            if (string.IsNullOrWhiteSpace(questId) || !runtimes.TryGetValue(questId, out var rt))
+                return false;
+
+            state = rt?.state;
+            return state != null;
         }
 
         public bool Accept(string questId)
@@ -90,6 +155,9 @@ namespace DataDrivenDemo.Quest
             UpsertTracker(def, state);
             RenderUi();
             SaveAcceptedList();
+            MarkDirty(def.id);
+            if (autoSaveOnChange)
+                SaveDirtyQuests();
             return true;
         }
 
@@ -362,6 +430,9 @@ namespace DataDrivenDemo.Quest
 
         private IEnumerator CoWaitForSaveServiceReady()
         {
+            if (!Application.isPlaying)
+                yield break;
+
             var installer = FindFirstObjectByType<FirebaseSaveInstaller>(FindObjectsInactive.Include);
             if (installer == null)
                 yield break;
@@ -508,6 +579,7 @@ namespace DataDrivenDemo.Quest
                 if (def?.steps == null || def.steps.Length == 0 || st == null)
                     continue;
 
+                var questChanged = false;
                 var completed = st.stepIndex >= def.steps.Length;
 
                 // 완료 후 제출 이벤트로 "완료(제출됨)" 처리
@@ -517,8 +589,15 @@ namespace DataDrivenDemo.Quest
                     {
                         st.turnedIn = true;
                         st.completed = true;
-                        anyChanged = true;
+                        questChanged = true;
                     }
+
+                    if (questChanged)
+                    {
+                        anyChanged = true;
+                        MarkDirty(kv.Key);
+                    }
+
                     continue;
                 }
 
@@ -534,44 +613,61 @@ namespace DataDrivenDemo.Quest
 
                 if (st.stepCount < required)
                 {
-                    anyChanged = true;
-                    continue;
+                    questChanged = true;
                 }
-
-                st.stepIndex++;
-                st.stepCount = 0;
-
-                // 목표 완료 체크
-                if (st.stepIndex >= def.steps.Length)
+                else
                 {
-                    st.completed = true;
-                    if (IsTurnInQuest(def) && MatchesObjective(GetLastObjective(def), evt))
-                        st.turnedIn = true;
+                    st.stepIndex++;
+                    st.stepCount = 0;
+
+                    if (st.stepIndex >= def.steps.Length)
+                    {
+                        st.completed = true;
+                        if (IsTurnInQuest(def) && MatchesObjective(GetLastObjective(def), evt))
+                            st.turnedIn = true;
+                    }
+
+                    questChanged = true;
                 }
+
+                if (!questChanged)
+                    continue;
 
                 anyChanged = true;
+                MarkDirty(kv.Key);
             }
 
             if (!anyChanged)
                 return;
 
             if (autoSaveOnChange)
-                SaveAllChanged();
+                SaveDirtyQuests();
 
             RefreshTrackerAll();
         }
 
-        private void SaveAllChanged()
+        private void MarkDirty(string questId)
         {
-            foreach (var kv in runtimes)
+            if (!string.IsNullOrWhiteSpace(questId))
+                dirtyQuestIds.Add(questId);
+        }
+
+        private void SaveDirtyQuests()
+        {
+            if (dirtyQuestIds.Count == 0)
+                return;
+
+            foreach (var questId in dirtyQuestIds)
             {
-                var st = kv.Value?.state;
-                if (st == null || string.IsNullOrWhiteSpace(st.questId))
+                if (!runtimes.TryGetValue(questId, out var rt) || rt?.state == null)
                     continue;
-                SaveServices.QuestSave.SaveQuestState(st);
+
+                SaveServices.QuestSave.SaveQuestState(rt.state);
                 if (SaveServices.QuestSave is not PlayerPrefsSaveService)
-                    localFallbackSave.SaveQuestState(st);
+                    localFallbackSave.SaveQuestState(rt.state);
             }
+
+            dirtyQuestIds.Clear();
         }
 
         private QuestState LoadStateWithFallback(string questId)
@@ -659,7 +755,7 @@ namespace DataDrivenDemo.Quest
                 if (obj == null || string.IsNullOrWhiteSpace(obj.targetId))
                     continue;
 
-                if (TryFindInteractableByTargetId(obj.targetId.Trim(), out var it))
+                if (InteractableRegistry.TryGetForObjectiveAnchor(obj.targetId, out var it))
                     anchors.Add(it.transform);
             }
         }
@@ -693,48 +789,6 @@ namespace DataDrivenDemo.Quest
                 return text;
 
             return $"{text} ({Mathf.Clamp(st.stepCount, 0, required)}/{required})";
-        }
-
-        /// <summary>
-        /// 월드 마커용: targetId와 Id가 같은 상호작용 오브젝트를 찾습니다.
-        /// 의뢰 NPC(<see cref="QuestGiverInteractable"/>)는 Id가 목표와 같아도 진행 목표 앵커로는 쓰지 않고,
-        /// Npc/Item/Terminal 등이 없을 때만 폴백합니다(같은 Id가 여러 컴포넌트에 있을 때 진행 마커가 사라지는 문제 방지).
-        /// </summary>
-        private static bool TryFindInteractableByTargetId(string targetId, out InteractableBase found)
-        {
-            found = null;
-            if (string.IsNullOrWhiteSpace(targetId))
-                return false;
-
-            var key = targetId.Trim();
-            InteractableBase questGiverFallback = null;
-
-            foreach (var b in UnityEngine.Object.FindObjectsByType<InteractableBase>(FindObjectsInactive.Include,
-                         FindObjectsSortMode.None))
-            {
-                if (b == null)
-                    continue;
-                if (!string.Equals(b.Id, key, StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                if (b is QuestGiverInteractable)
-                {
-                    if (questGiverFallback == null)
-                        questGiverFallback = b;
-                    continue;
-                }
-
-                found = b;
-                return true;
-            }
-
-            if (questGiverFallback != null)
-            {
-                found = questGiverFallback;
-                return true;
-            }
-
-            return false;
         }
 
         private static bool IsTurnInQuest(QuestDefinition def)

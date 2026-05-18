@@ -8,6 +8,8 @@ namespace DataDrivenDemo.Interaction
         [Header("Quest")]
         [SerializeField] private string actionId = "submit_terminal";
 
+        protected override void Awake() => base.Awake();
+
         public override void Interact(GameObject interactor)
         {
             QuestEvents.RaiseEvent(new QuestEvent(QuestEventType.Submit, Id, 1, actionId));

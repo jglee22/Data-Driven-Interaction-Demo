@@ -8,6 +8,8 @@ namespace DataDrivenDemo.Interaction
         [Header("Quest")]
         [SerializeField] private string actionId = "talk_npc";
 
+        protected override void Awake() => base.Awake();
+
         public override void Interact(GameObject interactor)
         {
             QuestEvents.RaiseEvent(new QuestEvent(QuestEventType.Talk, Id, 1, actionId));

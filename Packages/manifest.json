@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.unity.test-framework": "1.4.6",
     "com.unity.multiplayer.center": "1.0.1",
     "com.unity.postprocessing": "3.5.4",
     "com.unity.recorder": "5.1.6",

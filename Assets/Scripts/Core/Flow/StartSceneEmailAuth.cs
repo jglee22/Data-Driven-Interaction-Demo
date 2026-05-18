@@ -1,5 +1,4 @@
 using System;
-using System.Text;
 using System.Threading.Tasks;
 using Firebase.Auth;
 using Firebase.Extensions;
@@ -29,66 +28,17 @@ namespace DataDrivenDemo.Core.Flow
         [SerializeField] private bool sendVerificationAfterSignUp = true;
         [Tooltip("로그인 성공 시 이메일 인증이 완료돼 있으면 바로 씬을 로드합니다.")]
         [SerializeField] private bool autoContinueOnVerifiedSignIn = true;
-        [Tooltip("아이디/비밀번호를 이 기기에 저장합니다. (데모/개발용: 보안 저장 아님)")]
-        [SerializeField] private bool rememberCredentials;
-        [Tooltip("저장된 아이디/비밀번호가 있으면 시작 시 자동으로 로그인 시도합니다.")]
-        [SerializeField] private bool autoSignInOnStart = false;
 
         private FirebaseAuth auth;
         private bool busy;
 
-        private static bool AllowRememberCredentials =>
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            true;
-#else
-            false;
-#endif
-
         private void Awake()
         {
             auth = FirebaseAuth.DefaultInstance;
+            ClearLegacyCredentialPrefs();
+            HideRememberUi();
             Debug.Log("[StartSceneEmailAuth] Awake.");
             SetStatus("준비됨");
-
-            ApplyRememberCredentialsPolicy();
-            LoadSavedOptions();
-            SyncTogglesFromOptions();
-            LoadSavedCredentialsIntoInputs();
-            if (autoSignInOnStart)
-                TryAutoSignIn();
-        }
-
-        private void ApplyRememberCredentialsPolicy()
-        {
-            if (AllowRememberCredentials)
-                return;
-
-            rememberCredentials = false;
-            autoSignInOnStart = false;
-            ClearSavedCredentials();
-
-            if (rememberToggle != null)
-                rememberToggle.gameObject.SetActive(false);
-            if (autoSignInToggle != null)
-                autoSignInToggle.gameObject.SetActive(false);
-        }
-
-        public void SetRememberCredentials(bool enabled)
-        {
-            if (!AllowRememberCredentials)
-                enabled = false;
-            rememberCredentials = enabled;
-            if (!rememberCredentials)
-                ClearSavedCredentials();
-            SaveOptions();
-        }
-
-        public void SetAutoSignInOnStart(bool enabled)
-        {
-            autoSignInOnStart = enabled;
-            if (autoSignInOnStart)
-                TryAutoSignIn();
-            SaveOptions();
         }
 
         public void OnClickSignUp()
@@ -169,7 +119,6 @@ namespace DataDrivenDemo.Core.Flow
                         return;
                     }
 
-                    // 인증 상태는 로컬 캐시일 수 있어 reload 후 최종 판단
                     user.ReloadAsync()
                         .ContinueWithOnMainThread(reloadTask =>
                         {
@@ -180,6 +129,7 @@ namespace DataDrivenDemo.Core.Flow
                                 SetStatus("인증 상태 확인 취소됨");
                                 return;
                             }
+
                             if (reloadTask.IsFaulted)
                             {
                                 SetStatus("인증 상태 확인 실패: " + Summarize(reloadTask.Exception));
@@ -198,9 +148,6 @@ namespace DataDrivenDemo.Core.Flow
                                 SetStatus("로그인 완료 (미인증) - 메일 인증 후 다시 로그인하세요");
                                 return;
                             }
-
-                            if (AllowRememberCredentials && rememberCredentials)
-                                SaveCredentials(email, pass);
 
                             SetStatus("로그인 완료! 데모 씬으로 이동합니다.");
                             if (!string.IsNullOrWhiteSpace(demoSceneName))
@@ -231,11 +178,13 @@ namespace DataDrivenDemo.Core.Flow
                         SetStatus("인증메일 발송 취소됨");
                         return;
                     }
+
                     if (task.IsFaulted)
                     {
                         SetStatus("인증메일 발송 실패: " + Summarize(task.Exception));
                         return;
                     }
+
                     SetStatus("인증메일을 보냈습니다. 메일함에서 인증 후 '인증 확인'을 눌러주세요.");
                 });
         }
@@ -263,6 +212,7 @@ namespace DataDrivenDemo.Core.Flow
                         SetStatus("인증 확인 취소됨");
                         return;
                     }
+
                     if (task.IsFaulted)
                     {
                         SetStatus("인증 확인 실패: " + Summarize(task.Exception));
@@ -293,10 +243,14 @@ namespace DataDrivenDemo.Core.Flow
             Debug.Log("[StartSceneEmailAuth] SignOut click.");
             if (busy) return;
             auth.SignOut();
-            if (!rememberCredentials)
-                ClearSavedCredentials();
             SetStatus("로그아웃됨");
         }
+
+        /// <summary>UI 토글 바인딩 호환용. 비밀번호는 저장하지 않습니다.</summary>
+        public void SetRememberCredentials(bool enabled) { }
+
+        /// <summary>UI 토글 바인딩 호환용. 자동 로그인은 지원하지 않습니다.</summary>
+        public void SetAutoSignInOnStart(bool enabled) { }
 
         private (string email, string pass) ReadCredentials()
         {
@@ -312,11 +266,13 @@ namespace DataDrivenDemo.Core.Flow
                 SetStatus("이메일을 입력하세요");
                 return false;
             }
+
             if (string.IsNullOrWhiteSpace(pass) || pass.Length < 6)
             {
                 SetStatus("비밀번호는 6자 이상이어야 합니다");
                 return false;
             }
+
             return true;
         }
 
@@ -328,124 +284,26 @@ namespace DataDrivenDemo.Core.Flow
                 Debug.Log("[StartSceneEmailAuth] " + msg);
         }
 
-        private const string KeyEmail = "ddidemo.auth.email";
-        private const string KeyPass = "ddidemo.auth.pass";
-        private const string KeyRemember = "ddidemo.auth.remember";
-        private const string KeyAuto = "ddidemo.auth.auto";
+        private const string LegacyKeyEmail = "ddidemo.auth.email";
+        private const string LegacyKeyPass = "ddidemo.auth.pass";
+        private const string LegacyKeyRemember = "ddidemo.auth.remember";
+        private const string LegacyKeyAuto = "ddidemo.auth.auto";
 
-        private void LoadSavedOptions()
+        private static void ClearLegacyCredentialPrefs()
         {
-            if (!AllowRememberCredentials)
-                return;
-
-            if (PlayerPrefs.HasKey(KeyRemember))
-                rememberCredentials = PlayerPrefs.GetInt(KeyRemember, rememberCredentials ? 1 : 0) == 1;
-            if (PlayerPrefs.HasKey(KeyAuto))
-                autoSignInOnStart = PlayerPrefs.GetInt(KeyAuto, autoSignInOnStart ? 1 : 0) == 1;
-
-            if (!rememberCredentials)
-            {
-                // 저장 끄면 자동 로그인도 의미 없으니 같이 끔
-                autoSignInOnStart = false;
-            }
-        }
-
-        private void SaveOptions()
-        {
-            if (!AllowRememberCredentials)
-                return;
-
-            PlayerPrefs.SetInt(KeyRemember, rememberCredentials ? 1 : 0);
-            PlayerPrefs.SetInt(KeyAuto, autoSignInOnStart ? 1 : 0);
+            PlayerPrefs.DeleteKey(LegacyKeyEmail);
+            PlayerPrefs.DeleteKey(LegacyKeyPass);
+            PlayerPrefs.DeleteKey(LegacyKeyRemember);
+            PlayerPrefs.DeleteKey(LegacyKeyAuto);
             PlayerPrefs.Save();
         }
 
-        private void SyncTogglesFromOptions()
+        private void HideRememberUi()
         {
-            if (rememberToggle == null || autoSignInToggle == null)
-            {
-                // 자동 생성 UI 이름 기반으로 찾아봄(선택)
-                foreach (var t in GetComponentsInChildren<Toggle>(true))
-                {
-                    if (t == null) continue;
-                    if (rememberToggle == null && t.gameObject.name.Contains("Remember"))
-                        rememberToggle = t;
-                    else if (autoSignInToggle == null && t.gameObject.name.Contains("AutoSignIn"))
-                        autoSignInToggle = t;
-                }
-            }
-
             if (rememberToggle != null)
-                rememberToggle.SetIsOnWithoutNotify(rememberCredentials);
+                rememberToggle.gameObject.SetActive(false);
             if (autoSignInToggle != null)
-                autoSignInToggle.SetIsOnWithoutNotify(autoSignInOnStart);
-        }
-
-        private void LoadSavedCredentialsIntoInputs()
-        {
-            if (!AllowRememberCredentials)
-                return;
-
-            if (emailInput == null || passwordInput == null)
-                return;
-
-            var email = PlayerPrefs.GetString(KeyEmail, "");
-            var pass = Decode(PlayerPrefs.GetString(KeyPass, ""));
-
-            if (!string.IsNullOrWhiteSpace(email))
-                emailInput.text = email;
-            if (!string.IsNullOrWhiteSpace(pass))
-                passwordInput.text = pass;
-        }
-
-        private void SaveCredentials(string email, string pass)
-        {
-            if (!AllowRememberCredentials)
-                return;
-
-            PlayerPrefs.SetString(KeyEmail, email ?? "");
-            PlayerPrefs.SetString(KeyPass, Encode(pass ?? ""));
-            PlayerPrefs.Save();
-        }
-
-        private void ClearSavedCredentials()
-        {
-            PlayerPrefs.DeleteKey(KeyEmail);
-            PlayerPrefs.DeleteKey(KeyPass);
-            PlayerPrefs.Save();
-        }
-
-        private void TryAutoSignIn()
-        {
-            if (busy) return;
-            var (email, pass) = ReadCredentials();
-            if (!Validate(email, pass)) return;
-            OnClickSignIn();
-        }
-
-        private static string Encode(string raw)
-        {
-            if (string.IsNullOrEmpty(raw)) return "";
-            var bytes = Encoding.UTF8.GetBytes(raw);
-            for (var i = 0; i < bytes.Length; i++)
-                bytes[i] = (byte)(bytes[i] ^ 0x5A);
-            return Convert.ToBase64String(bytes);
-        }
-
-        private static string Decode(string enc)
-        {
-            if (string.IsNullOrWhiteSpace(enc)) return "";
-            try
-            {
-                var bytes = Convert.FromBase64String(enc);
-                for (var i = 0; i < bytes.Length; i++)
-                    bytes[i] = (byte)(bytes[i] ^ 0x5A);
-                return Encoding.UTF8.GetString(bytes);
-            }
-            catch
-            {
-                return "";
-            }
+                autoSignInToggle.gameObject.SetActive(false);
         }
 
         private static string Summarize(AggregateException ex)
@@ -456,4 +314,3 @@ namespace DataDrivenDemo.Core.Flow
         }
     }
 }
-

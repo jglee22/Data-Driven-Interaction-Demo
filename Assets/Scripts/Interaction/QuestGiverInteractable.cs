@@ -14,6 +14,8 @@ namespace DataDrivenDemo.Interaction
 
         public string[] OfferedQuestIds => offeredQuestIds ?? System.Array.Empty<string>();
 
+        protected override void Awake() => base.Awake();
+
         public override void Interact(GameObject interactor)
         {
             if (offerView == null)

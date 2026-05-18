@@ -13,6 +13,18 @@ namespace DataDrivenDemo.Interaction
         public virtual bool CanInteract(GameObject interactor) => true;
 
         public abstract void Interact(GameObject interactor);
+
+        /// <summary>Unity는 추상 베이스의 Awake를 호출하지 않으므로, 파생 클래스에서 반드시 base.Awake()를 호출합니다.</summary>
+        protected virtual void Awake() => InteractableRegistry.Register(this);
+
+        /// <summary>에디터·Edit Mode 테스트에서 컴포넌트 추가 시 등록합니다.</summary>
+        private void Reset() => InteractableRegistry.Register(this);
+
+        protected virtual void OnDestroy() => InteractableRegistry.Unregister(this);
+
+        protected virtual void OnEnable() => InteractableRegistry.Register(this);
+
+        protected virtual void OnDisable() => InteractableRegistry.Unregister(this);
     }
 }
 
