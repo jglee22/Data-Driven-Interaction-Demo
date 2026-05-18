@@ -7,6 +7,8 @@ UGUI·TMP 기반 HUD/저널/의뢰 UI, 로컬 저장 연동, (선택) Firebase·
 
 > 약 43초 · StartScene 로그인 → 퀘스트 수락 → 진행 → 보고·완료
 
+[![데모 시연 썸네일](docs/media/demo-thumbnail.png)](https://github.com/user-attachments/assets/0c7f7703-3479-4493-b606-1359198e8e22)
+
 [▶ GitHub에서 재생](https://github.com/user-attachments/assets/0c7f7703-3479-4493-b606-1359198e8e22)
 
 **시연 흐름**
@@ -70,11 +72,27 @@ flowchart LR
 
 `QuestDemoSaveHelper.HasAnySavedProgressAsync`로 **로컬 또는 Firestore**에 저장이 있으면 Continue를 활성화합니다. New Game·F12 리셋 시 카탈로그 기준으로 진행·수락 목록을 지웁니다.
 
-### 복원 확인 방법
+### 저장·복원 검증 시나리오
 
-1. 퀘스트 수락·진행 후 Firebase Console → Firestore **데이터**에서 `users/{uid}/quests`, `saves/quest_meta`를 확인합니다.
-2. Unity **Edit → Clear All PlayerPrefs** 후 같은 계정으로 다시 로그인·Play 합니다.
-3. HUD 트래커·진행도가 이전과 같으면 클라우드 복원이 동작한 것입니다.
+| ID | 시나리오 | 준비 | 기대 결과 | 검증 |
+|----|----------|------|-----------|------|
+| **A** | 로컬 재시작 | 퀘스트 1개 수락·진행(예: 1/3) 후 Play 종료 → DemoScene 재진입 | HUD 트래커·진행도 동일 | PlayerPrefs 미러 |
+| **B** | Continue | A 이후 StartScene → **Continue** | DemoScene에서 이전 진행 유지 | `HasAnySavedProgressAsync` |
+| **C** | 클라우드 복원 | Firebase 로그인·진행 저장 후 **Edit → Clear All PlayerPrefs** → 동일 계정 재로그인 | 수락·진행이 Firestore 기준으로 복원 | Console `users/{uid}/quests`, `saves/quest_meta` |
+| **D** | 초기화 | **New Game** 또는 F12(디버그 리셋) | 수락·진행·트래커 비움 | 카탈로그 기준 삭제 |
+| **E** | (선택) 새 기기 | C와 동일 흐름을 빌드·다른 PC에서 | 로컬 없이도 C와 동일 | Firestore만 신뢰 |
+
+**자동 테스트 (Edit Mode)**  
+**Window → General → Test Runner → EditMode** → `QuestSystemTests`  
+수락·픽업 진행·제출 완료·**PlayerPrefs 복원(Hydrate)**·Interactable Registry — 로직 회귀 방지용(Play 전체 플로우 대체 아님).
+
+**시나리오 C 상세**
+
+1. 퀘스트 수락·진행 후 Firestore **데이터**에서 `users/{uid}/quests`, `saves/quest_meta` 생성을 확인합니다.
+2. Unity **Edit → Clear All PlayerPrefs** 후 같은 계정으로 StartScene 로그인 → DemoScene Play 합니다.
+3. HUD 트래커·저널·월드 마커가 이전과 같으면 `QuestSystem` 비동기 hydrate(`IsHydrated`)가 정상입니다.
+
+수동 검증 체크리스트: [docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md)
 
 ### Firestore 보안 규칙 (예시)
 
@@ -141,6 +159,10 @@ service cloud.firestore {
 
 - **Google 로그인**: 기본적으로 비표시입니다(`showGoogleSignIn`, `showGoogleSignInInDemo`). 필요 시 인스펙터에서 활성화할 수 있습니다.
 - **이메일 비밀번호**: PlayerPrefs에 저장하지 않습니다. 로그인 상태는 **Firebase Auth 세션**만 사용합니다.
+
+## 검증 요약
+
+저장·복원: 로컬 재시작(A)·Continue(B)·PlayerPrefs 삭제 후 Firestore 복원(C) 수동 확인, Edit Mode `QuestSystemTests` 5건 통과.
 
 ## 라이선스·서드파티
 
