@@ -1,5 +1,6 @@
 # Unity Edit Mode tests (game-ci). Requires UNITY_LICENSE, UNITY_EMAIL, UNITY_PASSWORD secrets.
 # See docs/CI.md
+# 디버깅: 저장소 Settings → Variables → ACTIONS_STEP_DEBUG = true (로그 상세)
 name: Unity EditMode Tests
 
 on:
@@ -18,6 +19,9 @@ jobs:
         with:
           lfs: true
 
+      - name: Show Unity version from project (matches runner)
+        run: grep m_EditorVersion ProjectSettings/ProjectVersion.txt || true
+
       - name: Run tests
         uses: game-ci/unity-test-runner@v4
         env:
@@ -25,7 +29,17 @@ jobs:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
-          unityVersion: 6000.4.2f1
+          # ProjectSettings/ProjectVersion.txt와 자동 일치 (워크플로 수정 빈도 감소)
+          unityVersion: auto
           projectPath: .
           testMode: editmode
           artifactsPath: test-results
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload test artifacts (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unity-test-results
+          path: test-results
+          if-no-files-found: ignore
