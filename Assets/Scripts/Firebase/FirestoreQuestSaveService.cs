@@ -11,8 +11,9 @@ using UnityEngine;
 
 namespace DataDrivenDemo.Firebase
 {
-    public sealed class FirestoreQuestSaveService : ISaveService
+    public sealed class FirestoreQuestSaveService : ISaveService, IQuestSaveSyncSemantics
     {
+        public bool SyncLoadReadsPrimaryBackingStore => false;
         private const string JsonField = "json";
         private const string AcceptedField = "accepted";
         /// <summary>

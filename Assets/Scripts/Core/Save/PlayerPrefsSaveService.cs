@@ -5,8 +5,9 @@ using UnityEngine;
 
 namespace DataDrivenDemo.Core.Save
 {
-    public sealed class PlayerPrefsSaveService : ISaveService
+    public sealed class PlayerPrefsSaveService : ISaveService, IQuestSaveSyncSemantics
     {
+        public bool SyncLoadReadsPrimaryBackingStore => true;
         public void SaveQuestState(QuestState state)
         {
             if (state == null || string.IsNullOrWhiteSpace(state.questId))

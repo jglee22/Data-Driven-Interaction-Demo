@@ -9,6 +9,8 @@ namespace DataDrivenDemo.Quest
     /// <summary>
     /// 여러 퀘스트를 HUD/저널에 표시하기 위한 데모용 static 레지스트리.
     /// HUD는 QuestTrackerListView가 상위 N개만; 저널은 전체를 스크롤로 표시.
+    /// <see cref="DataDrivenDemo.Core.Save.SaveServices"/>와 마찬가지로 데모 단순화용 전역이며,
+    /// 씬 내 진실 원천은 <see cref="QuestSystem"/>이 갱신합니다(저널·HUD는 이 목록을 읽기만 함).
     /// </summary>
     public static class QuestTrackerService
     {

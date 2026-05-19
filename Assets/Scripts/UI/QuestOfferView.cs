@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using DataDrivenDemo.Core;
 using DataDrivenDemo.Interaction;
 using DataDrivenDemo.Player;
 using DataDrivenDemo.Quest;
@@ -399,6 +400,17 @@ namespace DataDrivenDemo.UI
 
         private void ResolveRefs()
         {
+            var ctx = GameplaySceneContext.Instance;
+            if (ctx != null)
+            {
+                if (questSystem == null)
+                    questSystem = ctx.QuestSystem;
+                if (catalog == null)
+                    catalog = ctx.QuestCatalog;
+                if (hud == null)
+                    hud = ctx.QuestHud;
+            }
+
             if (questSystem == null)
                 questSystem = FindFirstObjectByType<QuestSystem>(FindObjectsInactive.Include);
             if (catalog == null && questSystem != null)
@@ -413,6 +425,9 @@ namespace DataDrivenDemo.UI
 
         private QuestSystem ResolveQuestSystem()
         {
+            var ctx = GameplaySceneContext.Instance;
+            if (questSystem == null && ctx != null)
+                questSystem = ctx.QuestSystem;
             if (questSystem == null)
                 questSystem = FindFirstObjectByType<QuestSystem>(FindObjectsInactive.Include);
             return questSystem;
@@ -420,6 +435,9 @@ namespace DataDrivenDemo.UI
 
         private QuestCatalog ResolveCatalog()
         {
+            var ctx = GameplaySceneContext.Instance;
+            if (catalog == null && ctx != null)
+                catalog = ctx.QuestCatalog;
             if (catalog == null && questSystem != null)
                 catalog = questSystem.GetComponent<QuestCatalog>();
             if (catalog == null)

@@ -2,7 +2,8 @@
 
 수동 검증용 체크리스트입니다. Unity **DemoScene** · **StartScene** 기준입니다.
 
-**자동 테스트**: **Window → General → Test Runner → EditMode**에서 `QuestSystemTests`를 실행합니다.
+**자동 테스트**: **Window → General → Test Runner → EditMode**에서 `QuestSystemTests`를 실행합니다.  
+**CI**: GitHub Actions 설정은 [CI.md](CI.md)를 참고합니다.
 
 ## 저장·복원 시나리오 (수동)
 

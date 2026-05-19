@@ -15,7 +15,7 @@
 5. 플레이어 루트에 **`QuarterViewPlayerController`** + **`ProximityInteractor`** + 트리거 콜라이더를 둡니다.  
    - Tag **`Player`**를 권장합니다(없어도 `QuarterViewPlayerController`로 찾습니다).  
    - 카메라/UI/의뢰 패널은 **`PlayerLocator`**가 시작 시 플레이어를 자동 연결합니다. 인스펙터에 플레이어를 끌어다 넣을 필요는 없습니다.
-6. (권장) 빈 GameObject에 **`GameplaySceneContext`**를 추가하고 `QuestSystem`/`QuestHud`/`QuestJournal`/`QuestObjectiveWorldMarkerManager`를 연결합니다. 없어도 Awake에서 1회 탐색으로 동작합니다.
+6. (권장) 빈 GameObject에 **`GameplaySceneContext`**를 추가하고 `QuestSystem`/`QuestHud`/`QuestJournal`/`QuestObjectiveWorldMarkerManager`를 연결합니다. 선택으로 **`QuestOfferView`**·**`ProximityInteractor`**를 연결하면 Find 폴백을 더 줄입니다. 없어도 Awake에서 1회 탐색으로 동작합니다.
 
 ---
 

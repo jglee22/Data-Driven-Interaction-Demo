@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DataDrivenDemo.Core;
 using DataDrivenDemo.Interaction;
 using UnityEngine;
 
@@ -32,6 +33,8 @@ namespace DataDrivenDemo.Quest
 
         private void Awake()
         {
+            if (questSystem == null && GameplaySceneContext.Instance != null)
+                questSystem = GameplaySceneContext.Instance.QuestSystem;
             if (questSystem == null)
                 questSystem = FindFirstObjectByType<QuestSystem>(FindObjectsInactive.Include);
 
@@ -40,6 +43,8 @@ namespace DataDrivenDemo.Quest
 
         private void OnEnable()
         {
+            if (questSystem == null && GameplaySceneContext.Instance != null)
+                questSystem = GameplaySceneContext.Instance.QuestSystem;
             if (questSystem == null)
                 questSystem = FindFirstObjectByType<QuestSystem>(FindObjectsInactive.Include);
             RefreshFrom(questSystem);

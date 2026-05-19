@@ -1,4 +1,5 @@
 using UnityEngine;
+using DataDrivenDemo.Core;
 using DataDrivenDemo.UI;
 using DataDrivenDemo.Quest;
 
@@ -60,6 +61,8 @@ namespace DataDrivenDemo.Interaction
 
         private void Awake()
         {
+            if (questSystem == null && GameplaySceneContext.Instance != null)
+                questSystem = GameplaySceneContext.Instance.QuestSystem;
             if (questSystem == null)
                 questSystem = FindFirstObjectByType<QuestSystem>(FindObjectsInactive.Include);
             ResolvePromptView();

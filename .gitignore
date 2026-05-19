@@ -114,3 +114,7 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# game-ci / Unity Test Runner (GitHub Actions)
+test-results/
+[Aa]rtifacts/

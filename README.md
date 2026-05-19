@@ -122,7 +122,7 @@ service cloud.firestore {
 
 ## 아키텍처·런타임
 
-- **`GameplaySceneContext`**: DemoScene의 `QuestSystem`·HUD·저널·월드 마커 참조 허브(씬당 Find 1회).
+- **`GameplaySceneContext`**: DemoScene의 `QuestSystem`·HUD·저널·월드 마커 참조 허브(씬당 Find 1회). 선택 필드로 `QuestOfferView`·`ProximityInteractor`를 연결하면 Find 폴백을 더 줄일 수 있습니다.
 - **`QuestTrackerService` / `SaveServices`**: 데모용 static 레지스트리(HUD 데이터·저장 구현 교체).
 - **월드 마커**: `QuestObjectiveWorldMarkerManager`가 anchor별로 풀링·`SetActive` 재사용.
 
@@ -154,6 +154,7 @@ service cloud.firestore {
 - **퀘스트·의뢰·마커·씬 체크리스트**: [docs/QUEST_DEMO.md](docs/QUEST_DEMO.md)
 - **레거시 코드**: [docs/LEGACY.md](docs/LEGACY.md)
 - **테스트**: [docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md) (수동 + Edit Mode `QuestSystemTests`)
+- **CI (GitHub Actions)**: [docs/CI.md](docs/CI.md)
 
 ## 데모·보안 (StartScene)
 

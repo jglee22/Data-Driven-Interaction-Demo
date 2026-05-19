@@ -12,8 +12,8 @@ using UnityEngine;
 namespace DataDrivenDemo.Quest
 {
     /// <summary>
-    /// 현업형 멀티 퀘스트 런타임: 수락/진행/완료(보고가능)/제출완료 상태를 관리하고,
-    /// QuestTrackerService로 HUD/저널에 표시합니다.
+    /// 현업형 멀티 퀘스트 런타임. 저장은 <see cref="SaveServices"/>에서 주입되며, 이 컴포넌트는 <see cref="SaveServices.QuestSaveChanged"/>로 구현 교체를 추적합니다.
+    /// HUD/저널 표시 데이터는 <see cref="QuestTrackerService"/>와 동기화합니다.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class QuestSystem : MonoBehaviour
@@ -36,6 +36,9 @@ namespace DataDrivenDemo.Quest
         private readonly HashSet<string> dirtyQuestIds = new(StringComparer.Ordinal);
         private readonly PlayerPrefsSaveService localFallbackSave = new();
 
+        /// <summary>씬 런타임이 사용하는 저장 구현. <see cref="SaveServices.QuestSaveChanged"/>와 동기화됩니다.</summary>
+        private ISaveService activeQuestSave;
+
         /// <summary>Firestore/로컬 저장 복원이 끝난 뒤 true.</summary>
         public bool IsHydrated { get; private set; }
 
@@ -43,6 +46,9 @@ namespace DataDrivenDemo.Quest
 
         private void Awake()
         {
+            activeQuestSave = SaveServices.QuestSave;
+            SaveServices.QuestSaveChanged += OnQuestSaveImplementationChanged;
+
             if (catalog == null)
                 catalog = GetComponent<QuestCatalog>();
             if (catalog == null)
@@ -54,6 +60,14 @@ namespace DataDrivenDemo.Quest
             catalog?.Rebuild();
             EnsureQuestEventSubscription();
         }
+
+        private void OnDestroy()
+        {
+            SaveServices.QuestSaveChanged -= OnQuestSaveImplementationChanged;
+        }
+
+        private void OnQuestSaveImplementationChanged(ISaveService next) =>
+            activeQuestSave = next ?? new PlayerPrefsSaveService();
 
         private void CacheWorldMarkerManagers()
         {
@@ -93,6 +107,7 @@ namespace DataDrivenDemo.Quest
         {
             skipStartHydrate = true;
             catalog = testCatalog;
+            activeQuestSave = SaveServices.QuestSave;
             runtimes.Clear();
             dirtyQuestIds.Clear();
             IsHydrated = true;
@@ -325,7 +340,7 @@ namespace DataDrivenDemo.Quest
 
             if (clearSavedState)
             {
-                SaveServices.QuestSave.ClearQuestState(questId);
+                activeQuestSave.ClearQuestState(questId);
                 localFallbackSave.ClearQuestState(questId);
             }
 
@@ -370,20 +385,20 @@ namespace DataDrivenDemo.Quest
             var remaining = clearIds.Count;
             if (remaining == 0)
             {
-                SaveServices.QuestSave.SaveAcceptedQuestIdsAsync(Array.Empty<string>());
+                activeQuestSave.SaveAcceptedQuestIdsAsync(Array.Empty<string>());
                 return;
             }
 
             foreach (var id in clearIds)
             {
-                SaveServices.QuestSave.ClearQuestState(id, () =>
+                activeQuestSave.ClearQuestState(id, () =>
                 {
                     localFallbackSave.ClearQuestState(id);
                     remaining--;
                     if (remaining > 0)
                         return;
 
-                    SaveServices.QuestSave.SaveAcceptedQuestIdsAsync(Array.Empty<string>());
+                    activeQuestSave.SaveAcceptedQuestIdsAsync(Array.Empty<string>());
                 });
             }
         }
@@ -433,28 +448,58 @@ namespace DataDrivenDemo.Quest
             if (!Application.isPlaying)
                 yield break;
 
+            if (activeQuestSave is not PlayerPrefsSaveService)
+                yield break;
+
             var installer = FindFirstObjectByType<FirebaseSaveInstaller>(FindObjectsInactive.Include);
             if (installer == null)
                 yield break;
 
-            var waitedInstall = 0f;
-            const float installerTimeout = 5f;
-            while (SaveServices.QuestSave is PlayerPrefsSaveService && waitedInstall < installerTimeout)
+            var installDone = false;
+            void OnQuestSaveInstalled(ISaveService _) => installDone = true;
+            FirebaseSaveInstaller.QuestSaveInstalled += OnQuestSaveInstalled;
+            try
             {
-                waitedInstall += Time.unscaledDeltaTime;
-                yield return null;
+                var waitedInstall = 0f;
+                const float installerTimeout = 5f;
+                while (activeQuestSave is PlayerPrefsSaveService && !installDone && waitedInstall < installerTimeout)
+                {
+                    waitedInstall += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+            }
+            finally
+            {
+                FirebaseSaveInstaller.QuestSaveInstalled -= OnQuestSaveInstalled;
             }
 
             var bootstrap = FindFirstObjectByType<FirebaseBootstrap>(FindObjectsInactive.Include);
             if (bootstrap == null)
                 yield break;
 
-            var waitedAuth = 0f;
-            const float authTimeout = 30f;
-            while (!bootstrap.IsReady && waitedAuth < authTimeout)
+            if (bootstrap.IsReady)
+                yield break;
+
+            var authDone = false;
+            void OnSignedIn(string _) => authDone = true;
+            void OnInitFailed(string _) => authDone = true;
+
+            bootstrap.SignedIn += OnSignedIn;
+            bootstrap.InitFailed += OnInitFailed;
+            try
             {
-                waitedAuth += Time.unscaledDeltaTime;
-                yield return null;
+                var waitedAuth = 0f;
+                const float authTimeout = 30f;
+                while (!bootstrap.IsReady && !authDone && waitedAuth < authTimeout)
+                {
+                    waitedAuth += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+            }
+            finally
+            {
+                bootstrap.SignedIn -= OnSignedIn;
+                bootstrap.InitFailed -= OnInitFailed;
             }
         }
 
@@ -462,7 +507,7 @@ namespace DataDrivenDemo.Quest
         {
             var done = false;
             string[] result = Array.Empty<string>();
-            SaveServices.QuestSave.LoadAcceptedQuestIdsAsync(ids =>
+            activeQuestSave.LoadAcceptedQuestIdsAsync(ids =>
             {
                 result = ids ?? Array.Empty<string>();
                 done = true;
@@ -478,7 +523,7 @@ namespace DataDrivenDemo.Quest
         {
             var done = false;
             QuestState state = null;
-            SaveServices.QuestSave.LoadQuestStateAsync(questId, s =>
+            activeQuestSave.LoadQuestStateAsync(questId, s =>
             {
                 state = s;
                 done = true;
@@ -520,7 +565,7 @@ namespace DataDrivenDemo.Quest
         private void SaveAcceptedList()
         {
             var ids = runtimes.Keys.ToArray();
-            SaveServices.QuestSave.SaveAcceptedQuestIdsAsync(ids);
+            activeQuestSave.SaveAcceptedQuestIdsAsync(ids);
         }
 
         /// <summary>
@@ -662,17 +707,18 @@ namespace DataDrivenDemo.Quest
                 if (!runtimes.TryGetValue(questId, out var rt) || rt?.state == null)
                     continue;
 
-                SaveServices.QuestSave.SaveQuestState(rt.state);
-                if (SaveServices.QuestSave is not PlayerPrefsSaveService)
+                activeQuestSave.SaveQuestState(rt.state);
+                if (activeQuestSave is not PlayerPrefsSaveService)
                     localFallbackSave.SaveQuestState(rt.state);
             }
 
             dirtyQuestIds.Clear();
         }
 
+        /// <summary>수락 직전 등 동기 경로. Firestore는 <see cref="IQuestSaveSyncSemantics"/>에 따라 미러만 읽을 수 있으며, 복원은 <see cref="CoLoadQuestState"/> 비동기를 씁니다.</summary>
         private QuestState LoadStateWithFallback(string questId)
         {
-            var s = SaveServices.QuestSave.LoadQuestState(questId);
+            var s = activeQuestSave.LoadQuestState(questId);
             if (s != null)
                 return s;
             return localFallbackSave.LoadQuestState(questId);

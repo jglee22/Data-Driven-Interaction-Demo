@@ -1,3 +1,4 @@
+using DataDrivenDemo.Interaction;
 using DataDrivenDemo.Quest;
 using DataDrivenDemo.UI;
 using UnityEngine;
@@ -17,11 +18,16 @@ namespace DataDrivenDemo.Core
         [SerializeField] private QuestHudView questHud;
         [SerializeField] private QuestJournalView questJournal;
         [SerializeField] private QuestObjectiveWorldMarkerManager[] worldMarkerManagers;
+        [Header("Optional wired refs (reduces Find fallback)")]
+        [SerializeField] private QuestOfferView questOfferView;
+        [SerializeField] private ProximityInteractor proximityInteractor;
 
         public QuestSystem QuestSystem => questSystem;
         public QuestCatalog QuestCatalog => questCatalog;
         public QuestHudView QuestHud => questHud;
         public QuestJournalView QuestJournal => questJournal;
+        public QuestOfferView QuestOfferView => questOfferView;
+        public ProximityInteractor ProximityInteractor => proximityInteractor;
 
         private void Awake()
         {
@@ -57,6 +63,8 @@ namespace DataDrivenDemo.Core
         {
             if (questSystem == null)
                 questSystem = FindFirstObjectByType<QuestSystem>(FindObjectsInactive.Include);
+            if (questCatalog == null && questSystem != null)
+                questCatalog = questSystem.GetComponent<QuestCatalog>();
             if (questCatalog == null)
                 questCatalog = FindFirstObjectByType<QuestCatalog>(FindObjectsInactive.Include);
             if (questHud == null)
@@ -67,6 +75,11 @@ namespace DataDrivenDemo.Core
             if (worldMarkerManagers == null || worldMarkerManagers.Length == 0)
                 worldMarkerManagers = FindObjectsByType<QuestObjectiveWorldMarkerManager>(
                     FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+            if (questOfferView == null)
+                questOfferView = FindFirstObjectByType<QuestOfferView>(FindObjectsInactive.Include);
+            if (proximityInteractor == null)
+                proximityInteractor = FindFirstObjectByType<ProximityInteractor>(FindObjectsInactive.Include);
         }
     }
 }
