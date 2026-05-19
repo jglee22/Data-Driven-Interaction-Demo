@@ -9,6 +9,12 @@ on:
   pull_request:
     branches: [main, master]
 
+# game-ci가 githubToken으로 Check Run을 올릴 때 기본 토큰에 checks: write가 없으면
+# "Resource not accessible by integration" 이 납니다.
+permissions:
+  contents: read
+  checks: write
+
 jobs:
   editmode:
     name: EditMode

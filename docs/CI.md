@@ -30,3 +30,9 @@ GitHub는 Docker 단계 실패 시 **한 줄 요약**만 보여 주는 경우가
 2. 실행 페이지 **맨 아래 Artifacts**에서 **`unity-test-results`** ZIP을 받아 압축을 풀면 Unity 로그·테스트 결과가 들어 있는 경우가 많습니다.
 3. 더 자세한 Actions 로그가 필요하면 저장소 **Settings → Secrets and variables → Actions → Variables** 에서  
    `ACTIONS_STEP_DEBUG` = `true` 를 추가한 뒤 워크플로를 다시 실행합니다. (디버그 후에는 끄는 것을 권장합니다.)
+
+## `Resource not accessible by integration`
+
+`game-ci/unity-test-runner`가 `githubToken`으로 테스트 결과(Check Run)를 등록할 때, 워크플로/조직 기본 권한이 **읽기 전용**이면 이 오류가 날 수 있습니다.  
+이 저장소의 워크플로에는 `permissions: { contents: read, checks: write }` 가 들어 있습니다.  
+**포크에서 연 PR**은 upstream 저장소 토큰 정책상 여전히 실패할 수 있으면, 해당 PR에서는 `githubToken` 을 제거해 체크 업로드만 끄는 방법도 있습니다.

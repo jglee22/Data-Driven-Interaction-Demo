@@ -118,6 +118,7 @@ namespace DataDrivenDemo.Quest
         public void RunHydrateBlockingForTests()
         {
             IsHydrated = false;
+            activeQuestSave = SaveServices.QuestSave;
             RunCoroutineBlocking(CoHydrateFromSave());
         }
 
@@ -405,6 +406,8 @@ namespace DataDrivenDemo.Quest
 
         private IEnumerator CoHydrateFromSave()
         {
+            // Destroy/재생성 직후 또는 SaveServices 교체 직후에도 최신 구현을 씁니다.
+            activeQuestSave = SaveServices.QuestSave;
             yield return CoWaitForSaveServiceReady();
 
             string[] accepted = null;
@@ -445,6 +448,13 @@ namespace DataDrivenDemo.Quest
 
         private IEnumerator CoWaitForSaveServiceReady()
         {
+#if UNITY_EDITOR
+            // 에디터 테스트/CI: -batchmode + 씬 스텁이 있어도 PlayerPrefs 테스트가 Firebase 대기에 막히지 않게 함.
+            // (스탠드얼론 플레이어 배치 빌드에는 적용하지 않음 — UNITY_EDITOR 미정의)
+            if (Application.isBatchMode)
+                yield break;
+#endif
+
             if (!Application.isPlaying)
                 yield break;
 

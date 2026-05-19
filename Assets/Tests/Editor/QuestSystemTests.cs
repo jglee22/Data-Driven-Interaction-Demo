@@ -94,6 +94,9 @@ namespace DataDrivenDemo.Tests.Editor
             Object.DestroyImmediate(_root);
             _root = null;
 
+            // TearDown 전에 다른 테스트/초기화가 SaveServices를 바꿨을 수 있으므로 명시적으로 맞춤.
+            SaveServices.QuestSave = _save;
+
             var hydrateRoot = new GameObject("HydrateTest");
             var hydrateCatalog = hydrateRoot.AddComponent<QuestCatalog>();
             hydrateCatalog.RegisterDefinitionsForTests(MakePickupQuest(questId, "item_h"));
