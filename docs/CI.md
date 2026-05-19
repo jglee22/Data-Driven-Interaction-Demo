@@ -1,9 +1,15 @@
 # CI — Unity Edit Mode 테스트
 
-[`.github/workflows/unity-editmode.yml`](../.github/workflows/unity-editmode.yml)에서 **Edit Mode** `QuestSystemTests`를 실행합니다.
+[`.github/workflows/unity-editmode.yml`](../.github/workflows/unity-editmode.yml)에서 **Edit Mode** `QuestSystemTests`를 실행합니다.  
+`push` / `pull_request` 외에 **`workflow_dispatch`** 로 Actions 탭에서 수동 실행할 수 있습니다.
 
-## 필요한 GitHub Secrets
+## Library 캐시
 
+워크플로는 `actions/cache`로 **`Library`** 폴더를 캐시합니다. Unity·패키지 버전이 바뀌면 키가 달라져 **캐시 미스**가 나는 것이 정상입니다. 이상한 빌드가 보이면 해당 실행에서 캐시를 비우고 다시 돌려 보세요.
+
+## Firebase 설정이 과거 커밋에 포함된 경우
+
+[Firebase 히스토리 정리 가이드](FIREBASE_HISTORY_CLEANUP.md)를 참고하세요.
 [game-ci](https://game.ci/docs/github/test-runner/) 요구 사항에 맞게 저장소에 다음 시크릿을 등록합니다.
 
 | Secret | 설명 |

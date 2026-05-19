@@ -1,5 +1,7 @@
 # Data-Driven-Interaction-Demo
 
+[![Unity EditMode](https://github.com/jglee22/Data-Driven-Interaction-Demo/actions/workflows/unity-editmode.yml/badge.svg)](https://github.com/jglee22/Data-Driven-Interaction-Demo/actions/workflows/unity-editmode.yml)
+
 3D 공간에서 **데이터(JSON)로 정의한 상호작용**과 **퀘스트 런타임**을 연결하는 Unity 데모입니다.  
 UGUI·TMP 기반 HUD/저널/의뢰 UI, 로컬 저장 연동, (선택) Firebase·Photon 확장을 염두에 둔 구조입니다.
 
@@ -118,7 +120,8 @@ service cloud.firestore {
 | `Assets/StreamingAssets/google-services-desktop.json.sample` | `Assets/StreamingAssets/google-services-desktop.json` |
 | `Assets/google-services.json.sample` | `Assets/google-services.json` |
 
-실제 `google-services*.json`은 `.gitignore` 대상입니다. 이미 Git에 올라간 경우 `git rm --cached`로 추적만 해제합니다.
+실제 `google-services*.json`은 `.gitignore` 대상입니다. 이미 Git에 올라간 경우 `git rm --cached`로 추적만 해제합니다.  
+**과거 커밋에 실키가 남아 있다면** [docs/FIREBASE_HISTORY_CLEANUP.md](docs/FIREBASE_HISTORY_CLEANUP.md)처럼 히스토리 재작성을 검토하세요.
 
 ## 아키텍처·런타임
 
@@ -139,7 +142,7 @@ service cloud.firestore {
 
 1. Unity Hub에서 이 폴더를 프로젝트로 연 뒤 **`Assets/Scenes/DemoScene`**을 엽니다.
 2. **Play**를 누르면 플레이어 이동·근접 상호작용이 씬에 구성된 컨트롤러·트리거에 따라 동작합니다.
-3. 퀘스트·의뢰 UI가 씬에 없다면 [docs/QUEST_DEMO.md](docs/QUEST_DEMO.md)의 **에디터 메뉴** 절에 따라 `Build Quest Offer UI`, `Wire Quest Offer + npc_010 Giver` 등을 실행합니다.
+3. 퀘스트·의뢰 UI가 씬에 없다면 [docs/QUEST_DEMO.md](docs/QUEST_DEMO.md)의 **에디터 메뉴** 절에 따라 `Build Quest Offer UI`, `Wire Quest Offer + Quest Giver` 등을 실행합니다.
 
 ### 플레이 힌트
 
@@ -155,6 +158,7 @@ service cloud.firestore {
 - **레거시 코드**: [docs/LEGACY.md](docs/LEGACY.md)
 - **테스트**: [docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md) (수동 + Edit Mode `QuestSystemTests`)
 - **CI (GitHub Actions)**: [docs/CI.md](docs/CI.md)
+- **Firebase JSON 히스토리 정리**: [docs/FIREBASE_HISTORY_CLEANUP.md](docs/FIREBASE_HISTORY_CLEANUP.md)
 
 ## 데모·보안 (StartScene)
 

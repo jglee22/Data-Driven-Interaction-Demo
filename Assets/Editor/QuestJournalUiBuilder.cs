@@ -465,26 +465,13 @@ namespace DataDrivenDemo.EditorTools
         }
     }
 
-    /// <summary>의뢰 목록 UI + 의뢰 NPC 자동 연결. 의뢰는 npc_010 전용(퀘스트 001 Talk 대상 npc_001 은 그대로 둠).</summary>
+    /// <summary>
+    /// 의뢰 목록 UI + 의뢰 NPC 자동 연결.
+    /// NPC·의뢰 id는 <see cref="QuestOfferWireSettings"/> 또는 <see cref="QuestOfferWireResolver"/>가 결정합니다.
+    /// </summary>
     public static class QuestOfferUiBuilder
     {
         private const string OfferRootName = "QuestOffer";
-
-        /// <summary>의뢰만 받는 NPC id. quest_001 등은 npc_001 과 Talk 하므로 여기에 두면 안 됩니다.</summary>
-        private const string QuestGiverNpcId = "npc_010";
-
-        /// <summary>npc_010 이 없을 때 복제해 의뢰 NPC 를 만들 템플릿(반드시 NpcInteractable).</summary>
-        private const string QuestGiverSpawnTemplateNpcId = "npc_001";
-
-        /// <summary>데모 스코프: 의뢰 목록은 1~5번만. (비우면 런타임에서 카탈로그 전체 노출)</summary>
-        private static readonly string[] DemoScopedOfferQuestIds =
-        {
-            "quest_001",
-            "quest_002",
-            "quest_003",
-            "quest_004",
-            "quest_005",
-        };
 
         public static bool TryBuildOfferUi(out QuestOfferView offerView)
         {
@@ -731,10 +718,14 @@ namespace DataDrivenDemo.EditorTools
             TryBuildOfferUi(out _);
         }
 
-        [MenuItem("Tools/DataDrivenDemo/Wire Quest Offer + npc_010 Giver")]
-        [MenuItem("DataDrivenDemo/Wire Quest Offer (npc_010)", false, 2)]
+        [MenuItem("Tools/DataDrivenDemo/Wire Quest Offer + Quest Giver")]
+        [MenuItem("DataDrivenDemo/Wire Quest Offer + Quest Giver", false, 2)]
         private static void WireOfferAndQuestGiverNpc()
         {
+            QuestOfferWireResolver.TryFindSettings(out var wireSettings);
+            QuestOfferWireResolver.ResolveNpcIds(wireSettings, out var questGiverNpcId, out var questGiverSpawnTemplateNpcId);
+            var offeredQuestIds = QuestOfferWireResolver.ResolveOfferedQuestIds(wireSettings);
+
             var scene = EditorSceneManager.GetActiveScene();
             if (!scene.IsValid() || !scene.isLoaded)
             {
@@ -756,71 +747,71 @@ namespace DataDrivenDemo.EditorTools
                 return;
             }
 
-            // 1) 이미 npc_010 QuestGiver 가 있으면 연결만 갱신
+            // 1) 이미 동일 id QuestGiver 가 있으면 연결만 갱신
             foreach (var existing in Object.FindObjectsByType<QuestGiverInteractable>(FindObjectsInactive.Include,
                          FindObjectsSortMode.None))
             {
-                if (existing == null || !string.Equals(existing.Id, QuestGiverNpcId, System.StringComparison.Ordinal))
+                if (existing == null || !string.Equals(existing.Id, questGiverNpcId, System.StringComparison.Ordinal))
                     continue;
 
-                ApplyQuestGiverSerialized(existing, offer);
+                ApplyQuestGiverSerialized(existing, offer, offeredQuestIds, questGiverNpcId);
                 EditorUtility.SetDirty(existing.gameObject);
                 EditorSceneManager.MarkSceneDirty(scene);
                 DisableQuestDebugAcceptShortcuts();
                 Selection.activeGameObject = existing.gameObject;
-                Debug.Log("[QuestOfferUiBuilder] npc_010 QuestGiver 가 이미 있어 Offer 연결만 갱신했습니다.");
+                Debug.Log($"[QuestOfferUiBuilder] QuestGiver({questGiverNpcId}) 가 이미 있어 Offer 연결만 갱신했습니다.");
                 return;
             }
 
-            // 2) npc_010 NpcInteractable → QuestGiver 로 교체
+            // 2) 동일 id NpcInteractable → QuestGiver 로 교체
             foreach (var npc in Object.FindObjectsByType<NpcInteractable>(FindObjectsInactive.Include,
                          FindObjectsSortMode.None))
             {
-                if (npc == null || !string.Equals(npc.Id, QuestGiverNpcId, System.StringComparison.Ordinal))
+                if (npc == null || !string.Equals(npc.Id, questGiverNpcId, System.StringComparison.Ordinal))
                     continue;
 
                 var go = npc.gameObject;
                 Undo.DestroyObjectImmediate(npc);
                 var giver = Undo.AddComponent<QuestGiverInteractable>(go);
-                ApplyQuestGiverSerialized(giver, offer);
+                ApplyQuestGiverSerialized(giver, offer, offeredQuestIds, questGiverNpcId);
                 EditorUtility.SetDirty(go);
                 EditorSceneManager.MarkSceneDirty(scene);
                 DisableQuestDebugAcceptShortcuts();
                 Selection.activeGameObject = go;
-                Debug.Log("[QuestOfferUiBuilder] npc_010 NpcInteractable 을 QuestGiver 로 바꿨습니다.");
+                Debug.Log($"[QuestOfferUiBuilder] NpcInteractable({questGiverNpcId}) 을 QuestGiver 로 바꿨습니다.");
                 return;
             }
 
-            // 3) npc_010 이 없으면 npc_001 을 복제해 의뢰 전용 NPC 생성(npc_001 Talk 목표 유지)
-            var talkRoot = FindGameObjectWithSerializedInteractableId(QuestGiverSpawnTemplateNpcId);
+            // 3) 의뢰 NPC 가 없으면 템플릿 Npc 를 복제해 생성
+            var talkRoot = FindGameObjectWithSerializedInteractableId(questGiverSpawnTemplateNpcId);
             if (talkRoot == null)
             {
                 Debug.LogWarning(
-                    $"[QuestOfferUiBuilder] Wire: id 가 {QuestGiverSpawnTemplateNpcId} 인 Interactable 이 씬에 없습니다.");
+                    $"[QuestOfferUiBuilder] Wire: id 가 {questGiverSpawnTemplateNpcId} 인 Interactable 이 씬에 없습니다.");
                 return;
             }
 
             if (talkRoot.GetComponents<QuestGiverInteractable>().Length > 0)
             {
-                RestoreTalkNpcOnGuideObject(talkRoot);
+                RestoreTalkNpcOnGuideObject(talkRoot, questGiverSpawnTemplateNpcId);
                 EditorUtility.SetDirty(talkRoot);
                 EditorSceneManager.MarkSceneDirty(scene);
                 Debug.Log(
-                    "[QuestOfferUiBuilder] npc_001 오브젝트에서 QuestGiverInteractable 을 제거하고 NpcInteractable(Talk) 을 복구했습니다.");
+                    $"[QuestOfferUiBuilder] 템플릿 NPC({questGiverSpawnTemplateNpcId}) 에서 QuestGiverInteractable 을 제거하고 NpcInteractable(Talk) 을 복구했습니다.");
             }
 
-            var templateNpc = FindNpcInteractableBySerializedId(QuestGiverSpawnTemplateNpcId);
+            var templateNpc = FindNpcInteractableBySerializedId(questGiverSpawnTemplateNpcId);
             if (templateNpc == null)
             {
                 Debug.LogWarning(
-                    "[QuestOfferUiBuilder] Wire: npc_001 복구 후에도 NpcInteractable 을 찾지 못했습니다.");
+                    $"[QuestOfferUiBuilder] Wire: {questGiverSpawnTemplateNpcId} 복구 후에도 NpcInteractable 을 찾지 못했습니다.");
                 return;
             }
 
             var srcGo = templateNpc.gameObject;
             var dup = Object.Instantiate(srcGo);
-            Undo.RegisterCreatedObjectUndo(dup, "Create Quest Giver npc_010");
-            dup.name = "NPC_QuestGiver_010";
+            Undo.RegisterCreatedObjectUndo(dup, $"Create Quest Giver {questGiverNpcId}");
+            dup.name = $"NPC_QuestGiver_{SanitizeForObjectName(questGiverNpcId)}";
             dup.transform.SetParent(srcGo.transform.parent, true);
             dup.transform.position = srcGo.transform.position + new Vector3(1.75f, 0f, 0.2f);
             dup.transform.rotation = srcGo.transform.rotation;
@@ -831,14 +822,21 @@ namespace DataDrivenDemo.EditorTools
                 Undo.DestroyObjectImmediate(dupNpc);
 
             var newGiver = Undo.AddComponent<QuestGiverInteractable>(dup);
-            ApplyQuestGiverSerialized(newGiver, offer);
+            ApplyQuestGiverSerialized(newGiver, offer, offeredQuestIds, questGiverNpcId);
 
             EditorUtility.SetDirty(dup);
             EditorSceneManager.MarkSceneDirty(scene);
             DisableQuestDebugAcceptShortcuts();
             Selection.activeGameObject = dup;
             Debug.Log(
-                "[QuestOfferUiBuilder] npc_001 옆에 npc_010 QuestGiver 를 복제 생성했습니다. 의뢰는 이 NPC, 퀘스트 001 대화는 npc_001 을 사용하세요.");
+                $"[QuestOfferUiBuilder] {questGiverSpawnTemplateNpcId} 옆에 QuestGiver({questGiverNpcId}) 를 복제 생성했습니다. Talk 목표는 템플릿 NPC 를 사용하세요.");
+        }
+
+        private static string SanitizeForObjectName(string rawId)
+        {
+            if (string.IsNullOrWhiteSpace(rawId))
+                return "Giver";
+            return rawId.Trim().Replace(" ", "_").Replace(".", "_");
         }
 
         private static NpcInteractable FindNpcInteractableBySerializedId(string npcId)
@@ -875,8 +873,8 @@ namespace DataDrivenDemo.EditorTools
             return null;
         }
 
-        /// <summary>quest_001 Talk 대상 npc_001 은 NpcInteractable 만 두고, 잘못 붙은 QuestGiver 는 모두 제거합니다.</summary>
-        private static void RestoreTalkNpcOnGuideObject(GameObject go)
+        /// <summary>템플릿 NPC 오브젝트에서 QuestGiver 를 제거하고 Talk용 NpcInteractable id 를 복구합니다.</summary>
+        private static void RestoreTalkNpcOnGuideObject(GameObject go, string templateNpcId)
         {
             if (go == null)
                 return;
@@ -894,7 +892,7 @@ namespace DataDrivenDemo.EditorTools
             var soNpc = new SerializedObject(npc);
             var idProp = soNpc.FindProperty("id");
             if (idProp != null)
-                idProp.stringValue = QuestGiverSpawnTemplateNpcId;
+                idProp.stringValue = templateNpcId;
             var dn = soNpc.FindProperty("displayName");
             if (dn != null)
                 dn.stringValue = "\uC548\uB0B4 \uC694\uC6D0";
@@ -904,21 +902,26 @@ namespace DataDrivenDemo.EditorTools
             soNpc.ApplyModifiedProperties();
         }
 
-        private static void ApplyQuestGiverSerialized(QuestGiverInteractable giver, QuestOfferView offer)
+        private static void ApplyQuestGiverSerialized(
+            QuestGiverInteractable giver,
+            QuestOfferView offer,
+            string[] offeredQuestIds,
+            string giverNpcId)
         {
             var so = new SerializedObject(giver);
             so.FindProperty("offerView").objectReferenceValue = offer;
             var arr = so.FindProperty("offeredQuestIds");
             arr.ClearArray();
-            arr.arraySize = DemoScopedOfferQuestIds.Length;
-            for (var i = 0; i < DemoScopedOfferQuestIds.Length; i++)
-                arr.GetArrayElementAtIndex(i).stringValue = DemoScopedOfferQuestIds[i];
+            var ids = offeredQuestIds ?? System.Array.Empty<string>();
+            arr.arraySize = ids.Length;
+            for (var i = 0; i < ids.Length; i++)
+                arr.GetArrayElementAtIndex(i).stringValue = ids[i];
             so.ApplyModifiedProperties();
 
             var soBase = new SerializedObject(giver);
             var idProp = soBase.FindProperty("id");
             if (idProp != null)
-                idProp.stringValue = QuestGiverNpcId;
+                idProp.stringValue = giverNpcId;
             var dn = soBase.FindProperty("displayName");
             if (dn != null)
                 dn.stringValue = "\uC758\uB8B0 \uC9C0\uC815";
@@ -1073,6 +1076,119 @@ namespace DataDrivenDemo.EditorTools
             f.SetValue(target, value);
             if (target is Object uo)
                 EditorUtility.SetDirty(uo);
+        }
+    }
+
+    /// <summary>
+    /// 의뢰 UI Wire 메뉴가 사용할 NPC id·의뢰 퀘스트 id 목록.
+    /// 비어 있으면 <see cref="QuestOfferWireResolver"/>가 JSON/EditorPrefs로 채웁니다.
+    /// </summary>
+    [CreateAssetMenu(
+        fileName = "QuestOfferWireSettings",
+        menuName = "DataDrivenDemo/Quest Offer Wire Settings",
+        order = 52)]
+    public sealed class QuestOfferWireSettings : ScriptableObject
+    {
+        [Tooltip("QuestGiverInteractable 의 targetId. 비우면 EditorPrefs 또는 기본값.")]
+        public string questGiverNpcId;
+
+        [Tooltip("의뢰 NPC가 없을 때 복제할 NpcInteractable 의 id (Talk 전용 NPC). 비우면 EditorPrefs 또는 기본값.")]
+        public string questGiverSpawnTemplateNpcId;
+
+        [Tooltip("의뢰 패널에 노출할 퀘스트 id. 비우면 Assets/Data/Json 의 quest_*.json 에서 id를 수집합니다.")]
+        public string[] offeredQuestIds;
+    }
+
+    /// <summary>
+    /// Wire 메뉴용: ScriptableObject → 없으면 JSON 스캔 + EditorPrefs 기본값.
+    /// </summary>
+    public static class QuestOfferWireResolver
+    {
+        private const string JsonFolder = "Assets/Data/Json";
+        private const string PrefsGiverKey = "DataDrivenDemo.QuestOfferWire.GiverNpcId";
+        private const string PrefsTemplateKey = "DataDrivenDemo.QuestOfferWire.TemplateNpcId";
+
+        private const string DefaultGiverNpcId = "npc_010";
+        private const string DefaultTemplateNpcId = "npc_001";
+
+        [System.Serializable]
+        private class QuestIdStub
+        {
+            public string id;
+        }
+
+        /// <summary>프로젝트에 <see cref="QuestOfferWireSettings"/>가 하나 이상 있으면 경로순 첫 자산.</summary>
+        public static bool TryFindSettings(out QuestOfferWireSettings settings)
+        {
+            settings = null;
+            var guids = AssetDatabase.FindAssets("t:QuestOfferWireSettings");
+            if (guids == null || guids.Length == 0)
+                return false;
+
+            System.Array.Sort(guids, (a, b) => string.Compare(
+                AssetDatabase.GUIDToAssetPath(a),
+                AssetDatabase.GUIDToAssetPath(b),
+                System.StringComparison.Ordinal));
+
+            var path = AssetDatabase.GUIDToAssetPath(guids[0]);
+            settings = AssetDatabase.LoadAssetAtPath<QuestOfferWireSettings>(path);
+            return settings != null;
+        }
+
+        public static void ResolveNpcIds(QuestOfferWireSettings settings, out string giverId, out string templateId)
+        {
+            if (settings != null && !string.IsNullOrWhiteSpace(settings.questGiverNpcId))
+                giverId = settings.questGiverNpcId.Trim();
+            else
+                giverId = EditorPrefs.GetString(PrefsGiverKey, DefaultGiverNpcId);
+
+            if (settings != null && !string.IsNullOrWhiteSpace(settings.questGiverSpawnTemplateNpcId))
+                templateId = settings.questGiverSpawnTemplateNpcId.Trim();
+            else
+                templateId = EditorPrefs.GetString(PrefsTemplateKey, DefaultTemplateNpcId);
+        }
+
+        /// <summary>설정에 목록이 있으면 그대로, 없으면 JSON에서 id 수집.</summary>
+        public static string[] ResolveOfferedQuestIds(QuestOfferWireSettings settings)
+        {
+            if (settings != null && settings.offeredQuestIds != null && settings.offeredQuestIds.Length > 0)
+            {
+                var copy = new string[settings.offeredQuestIds.Length];
+                System.Array.Copy(settings.offeredQuestIds, copy, copy.Length);
+                return copy;
+            }
+
+            return DiscoverOfferQuestIdsFromProjectJson();
+        }
+
+        /// <summary><c>Assets/Data/Json</c> 아래 TextAsset JSON에서 최상위 <c>id</c>만 읽어 정렬합니다.</summary>
+        public static string[] DiscoverOfferQuestIdsFromProjectJson()
+        {
+            var list = new System.Collections.Generic.List<string>();
+            if (!AssetDatabase.IsValidFolder(JsonFolder))
+                return System.Array.Empty<string>();
+
+            var guids = AssetDatabase.FindAssets("t:TextAsset", new[] { JsonFolder });
+            foreach (var guid in guids)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                if (string.IsNullOrEmpty(path) || !path.EndsWith(".json", System.StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var ta = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
+                if (ta == null || string.IsNullOrWhiteSpace(ta.text))
+                    continue;
+
+                var stub = JsonUtility.FromJson<QuestIdStub>(ta.text);
+                if (stub == null || string.IsNullOrWhiteSpace(stub.id))
+                    continue;
+                if (list.Contains(stub.id))
+                    continue;
+                list.Add(stub.id);
+            }
+
+            list.Sort(System.StringComparer.Ordinal);
+            return list.ToArray();
         }
     }
 }

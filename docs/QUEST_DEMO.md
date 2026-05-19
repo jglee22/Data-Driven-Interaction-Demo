@@ -8,8 +8,10 @@
 
 1. 씬에 **`EventSystem`**이 있는지 확인합니다. 없으면 UI 클릭/수락이 동작하지 않을 수 있습니다.
 2. 메뉴 **`Tools → DataDrivenDemo → Build Quest Offer UI`**로 의뢰 패널을 생성합니다. 이미 있으면 생략합니다.
-3. **`Tools → DataDrivenDemo → Wire Quest Offer + npc_010 Giver`**를 실행합니다.  
-   - `npc_010`이 없으면 `npc_001` 옆에 **`NPC_QuestGiver_010`**이 생성되고, **`npc_001`은 Talk용 `NpcInteractable`로 유지**됩니다.
+3. **`Tools → DataDrivenDemo → Wire Quest Offer + Quest Giver`**를 실행합니다.  
+   - 기본값은 `QuestOfferWireSettings` 자산이 없을 때 **EditorPrefs** + **`Assets/Data/Json`의 `quest_*.json`에서 id 자동 수집**입니다.  
+   - NPC id·의뢰 목록을 고정하려면 **`DataDrivenDemo → Quest Offer Wire Settings`** 자산을 만들거나 `Tools → DataDrivenDemo → Create Quest Offer Wire Settings`로 저장합니다.  
+   - 의뢰 전용 NPC가 없으면 템플릿 NPC(기본 `npc_001`) 옆에 **`NPC_QuestGiver_<id>`** 형태로 복제되고, 템플릿은 Talk용 `NpcInteractable`로 유지됩니다.
 4. (선택) **`QuestObjectiveWorldMarkerManager`** 오브젝트를 추가한 뒤 스프라이트를 지정합니다.  
    - 의뢰 NPC만 아이콘을 쓰려면 **`Quest Giver Only`**에 해당 `QuestGiverInteractable` 하나만 넣습니다.
 5. 플레이어 루트에 **`QuarterViewPlayerController`** + **`ProximityInteractor`** + 트리거 콜라이더를 둡니다.  
@@ -35,8 +37,8 @@
 | 대상 | 역할 |
 |------|------|
 | **`npc_001`** 등 일반 NPC | `NpcInteractable` — `Talk` 이벤트로 퀘스트 진행 (예: `quest_001` 첫 목표). |
-| **`npc_010`** (또는 `NPC_QuestGiver_010`) | `QuestGiverInteractable` — 의뢰 목록 UI만 열고 Talk 이벤트는 발생시키지 않음. |
-| **`offeredQuestIds`** | 비어 있으면 카탈로그 전체가 의뢰 목록에 나올 수 있음. Wire는 **`quest_001`~`quest_005`**로 채웁니다. |
+| **의뢰 전용 NPC** (기본 `npc_010` 등) | `QuestGiverInteractable` — 의뢰 목록 UI만 열고 Talk 이벤트는 발생시키지 않음. |
+| **`offeredQuestIds`** | 비어 있으면 카탈로그 전체가 의뢰 목록에 나올 수 있음. Wire는 **`QuestOfferWireSettings`** 또는 **`Assets/Data/Json`**에서 읽은 id로 채웁니다. |
 
 **같은 오브젝트에 `QuestGiverInteractable`과 `NpcInteractable`을 동시에 두면** Talk 목표가 깨집니다.
 
@@ -47,7 +49,7 @@
 | 메뉴 | 설명 |
 |------|------|
 | **Build Quest Offer UI** | `QuestOffer` 루트/스크롤/상세/버튼 등을 생성합니다. Canvas에 `GraphicRaycaster`가 없으면 추가합니다. |
-| **Wire Quest Offer + npc_010 Giver** | 의뢰 NPC에 `QuestGiverInteractable`과 Offer를 연결하고, `offeredQuestIds` 1~5를 채우며, `QuestDebugAccepter`의 F1~F5 단축 수락을 끕니다. |
+| **Wire Quest Offer + Quest Giver** | 의뢰 NPC에 `QuestGiverInteractable`과 Offer를 연결하고, `offeredQuestIds`를 설정(자산·JSON)하며, `QuestDebugAccepter`의 F1~F5 단축 수락을 끕니다. |
 | **Build Quest Journal UI** | 저널 UI(목록/상세/포기/확인)를 생성합니다. |
 | **Build Quest Tracker UI** | HUD 트래커를 생성합니다. |
 | **Build Test Interactables (002~005)** | `npc_002`~`005` 등 테스트용 오브젝트를 배치합니다. |
